@@ -1,0 +1,286 @@
+#include "token.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <ctype.h>
+
+#ifdef MOCKA_TEST
+#warning COMPILING FOR MOCKA TESTS (SOURCE)
+#define STATIC
+#else
+#define STATIC static
+#endif
+
+const char *token_type_str[] = {
+    "T_UNKNOWN",
+    "T_CMT_START", "T_CMT_CONTENT", "T_CMT_END",
+    "T_LIST_START", "T_LIST_END",
+    "T_BLANK", "T_NEWLINE",
+    "T_SYMBOL", "T_STRING", "T_INT",
+    "T_FLOAT"
+};
+
+//static const struct token default_token = {T_UNKNOWN, 0};
+DEF_VECTOR_FUNCS(token, struct token, ((const struct token) {T_UNKNOWN, 0}));
+
+#define parse_error printf
+
+static void *xmalloc(size_t n)
+{
+    char *ns = malloc(n);
+    if (!ns) {
+        fprintf(stderr, "xmalloc: Fatal, malloc failed!\n");
+        exit(1);
+    }
+    return ns;
+}
+
+static char *xstrdupn(const char *s, size_t n)
+{
+    char *ns = calloc(1, n + 1);
+    if (!ns) {
+        fprintf(stderr, "xstrdupn: Fatal, calloc failed!\n");
+        exit(1);
+    }
+    strncpy(ns, s, n);
+    return ns;
+}
+
+#if 0
+static bool expect(const char *str, const char *expected)
+{
+    if (!strstr(str, expected)) {
+        return false;
+    }
+    return true;
+}
+#endif
+
+static const char *parse_comment(const char *str, vector_token *tokens)
+{
+    const char *ptr = str;
+
+    if (*ptr != CMT_START_CHR) {
+        parse_error("Expected '%c' for start of comment, got: '%c'!\n", CMT_START_CHR, *ptr);
+        return NULL;
+    }
+
+    vector_push_token(tokens, (token)
+                        {T_CMT_START, 1, .is_str=false, .chr=CMT_START_CHR});
+    // Skip the CMT_START_CHR
+    str++;
+    ptr++;
+
+    size_t cmnt_len = 0;
+    while (*ptr && *ptr != CMT_END_CHR) {
+        ptr++;
+        cmnt_len++;
+    }
+
+    char *cmnt_str = xstrdupn(str, cmnt_len);
+    token cmnt = {T_CMT_CONTENT, cmnt_len, .is_str=true, .str=cmnt_str};
+    vector_push_token(tokens, cmnt);
+
+    if (*ptr != CMT_END_CHR) {
+        parse_error("Expected '%c' for end of comment, got: '%c'!\n", CMT_END_CHR, *ptr);
+        return NULL;
+    }
+
+    ptr++;
+    token cmnt_end = {T_CMT_END, 1, .is_str=false, .chr=CMT_END_CHR, .null=0};
+    vector_push_token(tokens, cmnt_end);
+
+    return ptr;
+}
+
+static const char *parse_blank(const char *str, vector_token *tokens)
+{
+    const char *ptr = str;
+    size_t blanks_len = 0;
+    while (*ptr && isblank(*ptr)) {
+        ptr++;
+        blanks_len++;
+    }
+
+    char *blanks_str = xstrdupn(str, blanks_len);
+    token blanks = {T_BLANK, blanks_len, .is_str=true, .str=blanks_str};
+    vector_push_token(tokens, blanks);
+
+    return ptr;
+}
+
+DEF_VECTOR(char, char, 0);
+
+// takes a string which starts WITHOUT a \" (quote)
+STATIC size_t sstr_len(const char *str)
+{
+    const char *ptr = str;
+    // Find the length needed to store the string
+    size_t len = 0;
+    bool escaped = false;
+    while (*ptr) {
+        if (*ptr == STRING_ESCAPE_CHR) {
+            if (!escaped) {
+                len++;
+                escaped = true;
+            } else {
+                escaped = false;
+            }
+        } else if (*ptr == STRING_END_CHR && !escaped) {
+            return len;
+        } else {
+            if (!escaped) {
+                // The string length is counted
+                // when the first \ is encountered.
+                // And we only count it one time.
+                len++;
+            }
+            escaped = false;
+        }
+        ptr++;
+    }
+    return -1;
+}
+
+static const char *parse_string(const char *str, vector_token *tokens)
+{
+    if (*str != STRING_START_CHR) {
+        return NULL;
+    }
+    // Skip the STRING_START_CHR
+    str++;
+    if (!(*str)) {
+        // Was not a valid string. Was
+        // just a starting quote but
+        // nothing else.
+        return NULL;
+    }
+
+    size_t len = sstr_len(str);
+    char *s = xmalloc(len + 1);
+    char *sptr = s;
+
+    const char *ptr = str;
+    bool escaped = 0;
+    while (*ptr) {
+        if (*ptr == STRING_ESCAPE_CHR) {
+            if (escaped) {
+                *sptr++ = *ptr;
+            }
+            escaped = !escaped;
+        } else if (*ptr == STRING_END_CHR && !escaped) {
+            ptr++;
+            break;
+        } else {
+            *sptr++ = *ptr;
+            escaped = false;
+        }
+        ptr++;
+    }
+
+    *sptr++ = '\0';
+    vector_push_token(tokens, (token)
+                      {T_STRING, .len=len, .is_str=true, .str=s});
+
+    return ptr;
+}
+
+static const char *parse_atom(const char *str, vector_token *tokens)
+{
+    const char *ptr = str;
+
+    // Can either be a symbol, string, or a number
+    if (*str == STRING_START_CHR) {
+        return parse_string(ptr, tokens);
+    } else {
+        parse_error("Unrecognized atom: `%s`\n", str);
+        return NULL;
+    }
+
+    return ptr;
+}
+
+static const char *tokenize_str_(const char *str, vector_token *tokens)
+{
+    const char *ptr = str;
+    while (*ptr) {
+        // List
+        if (*ptr == LIST_START_CHR) {
+            vector_push_token(tokens, (token)
+                              {T_LIST_START, 1, .is_str=false, .chr=LIST_START_CHR});
+            ptr++;
+            ptr = tokenize_str_(ptr, tokens);
+            if (!ptr)  {
+                NULL;
+            }
+        } else if (*ptr == LIST_END_CHR) {
+            vector_push_token(tokens, (token)
+                              {T_LIST_END, 1, .is_str=false, .chr=LIST_END_CHR});
+            ptr++;
+            return ptr;
+        // ';' Comments ignore the rest of the line.
+        } else if (*ptr == CMT_START_CHR) {
+            ptr = parse_comment(ptr, tokens);
+            if (!ptr)  {
+                return NULL;
+            }
+        } else if (*ptr == NEWLINE_CHR) {
+            vector_push_token(tokens, (token)
+                              {T_NEWLINE, 1, .is_str=false, .chr=NEWLINE_CHR});
+            ptr++;
+            return ptr;
+        // Blanks
+        } else if (isblank(*ptr)) {
+            ptr = parse_blank(ptr, tokens);
+            if (!ptr)  {
+                return NULL;
+            }
+        } else {
+            ptr = parse_atom(ptr, tokens);
+            if (!ptr)  {
+                parse_error("Failed to parse atom.\n");
+                return NULL;
+            }
+        }
+    }
+    return ptr;
+}
+
+int tokenize_str(const char *str, vector_token *tokens)
+{
+    return tokenize_str_(str, tokens) == NULL;
+}
+
+void token_free(token *tok)
+{
+    if (tok->is_str) {
+        free(tok->str);
+    }
+}
+
+void token_print(const token *tok)
+{
+    char str[2] = {0, 0};
+    char *str_ptr = str;
+    switch (tok->type) {
+        case T_LIST_START: case T_LIST_END:
+        case T_CMT_START: case T_CMT_END:
+        case T_UNKNOWN:
+        case T_NEWLINE:
+            str[0] = tok->chr;
+            break;
+
+        case T_SYMBOL:
+        case T_STRING:
+        case T_INT: case T_FLOAT:
+        case T_BLANK:
+        case T_CMT_CONTENT:
+            str_ptr = tok->str;
+            break;
+    }
+    printf("type: %s, len: %lu, str: `%s`\n", TOKEN_TYPE_STR(tok->type), tok->len, str_ptr);
+}

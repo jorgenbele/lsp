@@ -1,0 +1,10 @@
+#+TITLE: 
+* Code guidelines
+** Limit allocations to a minimum!
+** NULL checks are done by the caller!
+** <type>_<operation>(IN_ARGS, OUT_ARGS)
+** Use nouns when a non-zero return value should mean success:
+*** E.g. has_object, is_type, ...
+** Comment what is being allocated.
+** Use enums for errors when ints are used instead of booleans.
+
