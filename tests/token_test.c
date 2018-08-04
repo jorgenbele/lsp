@@ -13,13 +13,13 @@ static void sstr_len_simple(void **state) {
 
 // sstr_len of string with escaped escapes 
 static void sstr_len_simple_escaped(void **state) {
-    assert_int_equal(sstr_len("\\\""), 1);
+    assert_int_equal(sstr_len("\\\\\""), 1);
 }
 
 // sstr_len of string with escaped quotes 
 static void sstr_len_simple_escaped_quotes(void **state) {
-    assert_int_equal(sstr_len("\\\"\""), 1); /* \" */
-    assert_int_equal(sstr_len("\\\\\\\"\""), 2); /* \\\" */
+    assert_int_equal(sstr_len("\\\"\""), 1);
+    assert_int_equal(sstr_len("\\\\\\\"\""), 2);
 }
 
 // sstr_len of string with escaped escapes 
@@ -34,7 +34,7 @@ static void sstr_len_zero(void **state) {
 
 // sstr_len of string with a single escape char
 static void sstr_len_single_escaped(void **state) {
-    assert_int_equal(sstr_len("\\\""), 1);
+    assert_int_equal(sstr_len("\\\\\""), 1);
 }
 
 static void assert_token_equal(const token *t1, const token *t2) {

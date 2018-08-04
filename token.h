@@ -61,7 +61,7 @@ void token_free(token *tok);
 
 #ifdef MOCKA_TEST
 #warning COMPILING FOR MOCKA TESTS (HEADER)
-size_t sstr_len(const char *str);
+ssize_t sstr_len(const char *str);
 #endif /* MOCKA_TEST */
 
 #endif /* _TOKEN_H_ */

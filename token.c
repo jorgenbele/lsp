@@ -116,7 +116,7 @@ static const char *parse_blank(const char *str, vector_token *tokens)
 DEF_VECTOR(char, char, 0);
 
 // takes a string which starts WITHOUT a \" (quote)
-STATIC size_t sstr_len(const char *str)
+STATIC ssize_t sstr_len(const char *str)
 {
     const char *ptr = str;
     // Find the length needed to store the string
@@ -160,7 +160,12 @@ static const char *parse_string(const char *str, vector_token *tokens)
         return NULL;
     }
 
-    size_t len = sstr_len(str);
+    ssize_t slen = sstr_len(str);
+    if (slen < 0) {
+        parse_error("Attempting to parse unterminated string: `%s``\n", str);
+        return NULL;
+    }
+    size_t len = (size_t) slen;
     char *s = xmalloc(len + 1);
     char *sptr = s;
 
