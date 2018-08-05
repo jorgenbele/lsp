@@ -135,7 +135,8 @@ static void tokenize_list_simple(void **state) {
             (token){.type=T_LIST_END,   .is_str=false, .len=1, .chr=LIST_END_CHR},
         }, 7);
 }
-// parse a simple list
+
+// parse a recurseive list
 static void tokenize_list_recursive_1(void **state) {
     assert_tokenize("(print (concat \"test\" \"ing\") \"strings\")", (token []) {
             (token){.type=T_LIST_START, .is_str=false, .len=1, .chr=LIST_START_CHR},
@@ -154,7 +155,26 @@ static void tokenize_list_recursive_1(void **state) {
         }, 13);
 }
 
-// parse a list containing a symbol and strings
+// parse a recurseive list
+static void tokenize_list_recursive_2(void **state) {
+    assert_tokenize("(+ (avg +2.14 -0.4 1) -3)", (token []) {
+            (token){.type=T_LIST_START, .is_str=false, .len=1, .chr=LIST_START_CHR},
+            (token){.type=T_SYMBOL,     .is_str=true,  .len=1, .str="+"},
+            (token){.type=T_BLANK,      .is_str=true,  .len=1, .str=" "},
+            (token){.type=T_LIST_START, .is_str=false, .len=1, .chr=LIST_START_CHR},
+            (token){.type=T_SYMBOL,     .is_str=true,  .len=3, .str="avg"},
+            (token){.type=T_BLANK,      .is_str=true,  .len=1, .str=" "},
+            (token){.type=T_FLOAT,      .is_str=true,  .len=5, .str="+2.14"},
+            (token){.type=T_BLANK,      .is_str=true,  .len=1, .str=" "},
+            (token){.type=T_FLOAT,      .is_str=true,  .len=4, .str="-0.4"},
+            (token){.type=T_BLANK,      .is_str=true,  .len=1, .str=" "},
+            (token){.type=T_INT,        .is_str=true,  .len=1, .str="1"},
+            (token){.type=T_LIST_END,   .is_str=false, .len=1, .chr=LIST_END_CHR},
+            (token){.type=T_BLANK,      .is_str=true,  .len=1, .str=" "},
+            (token){.type=T_INT,        .is_str=true,  .len=2, .str="-3"},
+            (token){.type=T_LIST_END,   .is_str=false, .len=1, .chr=LIST_END_CHR},
+        }, 15);
+}
 
 int main(void)
 {
@@ -185,6 +205,7 @@ int main(void)
         cmocka_unit_test(tokenize_list_empty),
         cmocka_unit_test(tokenize_list_simple),
         cmocka_unit_test(tokenize_list_recursive_1),
+        cmocka_unit_test(tokenize_list_recursive_2),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);    
 }

@@ -199,7 +199,7 @@ static const char *parse_number(const char *str, vector_token *tokens)
 {
     const char *ptr = str;
     if (!isdigit(*ptr) && (*ptr != '+' && *ptr != '-')) {
-        parse_error("Illegal start of number: `%s`\n", str);
+        //parse_error("Illegal start of number: `%s`\n", str);
         return NULL;
     }
 
@@ -213,6 +213,11 @@ static const char *parse_number(const char *str, vector_token *tokens)
     while (isdigit(*ptr)) {
         ptr++;
         int_len++;
+    }
+
+    if (int_len < 1) {
+        // not a valid int
+        return NULL;
     }
 
     bool is_float = false;
@@ -269,6 +274,12 @@ static const char *parse_atom(const char *str, vector_token *tokens)
     if (isdigit(*str)) {
         // Must be a number (int or float)
         return parse_number(ptr, tokens);
+    }
+
+    // Try parse number.
+    const char *p = parse_number(ptr, tokens);
+    if (p) {
+        return p;
     }
 
     // Must be a symbol
