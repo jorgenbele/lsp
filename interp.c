@@ -1,20 +1,11 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "types.h"
 #include "builtins.h"
 #include "interp.h"
 #include "utils.h"
 
-// not public
-enum e_interp_state {NORMAL, IN_LIST};
-struct interp_state {
-    enum e_interp_state state;
-    size_t stack_start; 
-};
-
-typedef struct interp_state interp_state;
-DEF_VECTOR(interp_state, interp_state, ((interp_state) {NORMAL, 0}));
+DEF_VECTOR_FUNCS(interp_state, interp_state, ((interp_state) {NORMAL, 0}));
 
 static void *symb_get_func(const char *name)
 {
@@ -29,7 +20,7 @@ static void *symb_get_func(const char *name)
 }
 
 
-int exec_tokens(vector_token *tokens)
+vector_lsp_obj_ptr *exec_tokens_(vector_token *tokens)
 {
     // Stores a stack of the current parse state.
     // Is used for handling of recursive elements.
@@ -37,8 +28,8 @@ int exec_tokens(vector_token *tokens)
     assert(!vector_init_interp_state(&states));
 
     // Stores the 'lsp_object's in a stack.
-    vector_lsp_obj_ptr stack;
-    assert(!vector_init_lsp_obj_ptr(&stack));
+    vector_lsp_obj_ptr *stack = xcalloc(1, sizeof (*stack));
+    assert(!vector_init_lsp_obj_ptr(stack));
 
     for (size_t i = 0; i < tokens->len; i++) {
         const token t = vector_get_token(tokens, i);
@@ -51,7 +42,7 @@ int exec_tokens(vector_token *tokens)
                 // so the start position of the list has to be stored
                 // in order to be able to retrieve it
                 // (squash into list object).
-                vector_push_interp_state(&states, (interp_state) {IN_LIST, stack.len});
+                vector_push_interp_state(&states, (interp_state) {IN_LIST, stack->len});
                 break;
 
             case T_LIST_END: {
@@ -59,7 +50,7 @@ int exec_tokens(vector_token *tokens)
                 if (state.state != IN_LIST) {
                     // TODO cleanup
                     fprintf(stderr, "Runtime error: reached end of list while not inside a list\n!");
-                    return 1;
+                    return NULL;
                 }
 
                 // Squash the stack into a lsp_list object.
@@ -67,9 +58,9 @@ int exec_tokens(vector_token *tokens)
                 assert(!lsp_obj_init((lsp_obj *) &lst, OBJ_LIST));
                 assert(!vector_init_lsp_obj_ptr(&lst.vec));
                 size_t squashed = 0;
-                for (size_t i = state.stack_start; i < stack.len; i++) {
-                    lsp_obj *obj = vector_get_lsp_obj_ptr(&stack, i);
-                    assert(!stack.error);
+                for (size_t i = state.stack_start; i < stack->len; i++) {
+                    lsp_obj *obj = vector_get_lsp_obj_ptr(stack, i);
+                    assert(!stack->error);
                     vector_push_lsp_obj_ptr(&lst.vec, obj);
                     assert(!lst.vec.error);
                     squashed++;
@@ -78,15 +69,15 @@ int exec_tokens(vector_token *tokens)
                 // Pop the elements that was squashed
                 // (they are still referenced in the squashed list)
                 for (size_t i = 0; i < squashed; i++) {
-                    lsp_obj *obj = vector_pop_lsp_obj_ptr(&stack);
-                    assert(!stack.error);
+                    lsp_obj *obj = vector_pop_lsp_obj_ptr(stack);
+                    assert(!stack->error);
                     assert(obj);
                 }
 
                 const lsp_symbol *symb = (lsp_symbol *) vector_get_lsp_obj_ptr(&lst.vec, 0);
-                if (stack.error || !symb) {
+                if (stack->error || !symb) {
                     // No list element
-                    stack.error = 0;
+                    stack->error = 0;
                 } else if (symb->type == OBJ_SYMBOL) {
                     // Try to resolve the symbol
                     //fprintf(stderr, "symb: %s, `%s`, %lu\n", obj_type_str[symb->type], symb->symb, symb->symb_len);
@@ -105,17 +96,16 @@ int exec_tokens(vector_token *tokens)
                         ret = func_ptr(&lst.vec);
                     }
                     if (ret) {
-                        vector_push_lsp_obj_ptr(&stack, ret);
+                        vector_push_lsp_obj_ptr(stack, ret);
                     }
                 } else {
                     // Is list but not function call
 
                     // Push to the stack
                     // Move to the heap.
-                    fprintf(stderr, "MOVING TO HEAP: %lu\n", lst.vec.len);
                     lsp_list *lst_ptr = xcalloc(1, sizeof(*lst_ptr));
                     memcpy(lst_ptr, &lst, sizeof(lst));
-                    vector_push_lsp_obj_ptr(&stack, (lsp_obj_ptr) lst_ptr);
+                    vector_push_lsp_obj_ptr(stack, (lsp_obj_ptr) lst_ptr);
                     break; // EARLY
                 }
 
@@ -142,7 +132,7 @@ int exec_tokens(vector_token *tokens)
                 symb->symb = xstrdupn(t.str, t.len);
 
                 //fprintf(stderr, "PUSHING SYMBOL\n");
-                vector_push_lsp_obj_ptr(&stack, (lsp_obj *) symb);
+                vector_push_lsp_obj_ptr(stack, (lsp_obj *) symb);
                 // TODO: lookup variables and replace with
                 // the value of the variable/constant if it exists.
                 break;
@@ -156,7 +146,7 @@ int exec_tokens(vector_token *tokens)
                 assert(!lsp_obj_init_w((lsp_obj *)str, OBJ_STRING, t.str, t.len));
                 // TODO: lookup variables
                 //fprintf(stderr, "PUSHING STRING\n");
-                vector_push_lsp_obj_ptr(&stack, (lsp_obj *) str);
+                vector_push_lsp_obj_ptr(stack, (lsp_obj *) str);
                 break;
             }
 
@@ -167,7 +157,7 @@ int exec_tokens(vector_token *tokens)
                 assert(flt);
                 assert(!lsp_obj_init((lsp_obj *)flt, OBJ_FLOAT));
                 flt->flt = atof(t.str);
-                vector_push_lsp_obj_ptr(&stack, (lsp_obj *) flt);
+                vector_push_lsp_obj_ptr(stack, (lsp_obj *) flt);
                 //fprintf(stderr, "PUSHING FLOAT\n");
                 break;
             }
@@ -179,8 +169,8 @@ int exec_tokens(vector_token *tokens)
                 assert(integer);
                 assert(!lsp_obj_init((lsp_obj *) integer, OBJ_INT));
                 integer->integer = atoll(t.str);
-                integer->type = OBJ_INT; // 
-                vector_push_lsp_obj_ptr(&stack, (lsp_obj *) integer);
+                integer->type = OBJ_INT; //
+                vector_push_lsp_obj_ptr(stack, (lsp_obj *) integer);
                 //fprintf(stderr, "PUSHING INT\n");
                 break;
             }
@@ -195,11 +185,22 @@ int exec_tokens(vector_token *tokens)
                 break;
         }
     }
+    assert(!vector_destroy_interp_state(&states));
+    return stack;
+}
+
+int exec_tokens(vector_token *tokens)
+{
+    vector_lsp_obj_ptr *stack = exec_tokens_(tokens);
+
+    if (!stack) {
+        return 1;
+    }
 
     // TODO: free stack objects
     //fprintf(stderr, "STACK LEN: %lu\n", stack.len);
-    while (!stack.error) {
-        lsp_obj *obj = vector_pop_lsp_obj_ptr(&stack);
+    while (!stack->error) {
+        lsp_obj *obj = vector_pop_lsp_obj_ptr(stack);
         if (obj) {
             lsp_obj_print_repr(obj);
             lsp_obj_destroy(obj);
@@ -207,7 +208,6 @@ int exec_tokens(vector_token *tokens)
         }
     }
 
-    assert(!vector_destroy_lsp_obj_ptr(&stack));
-    assert(!vector_destroy_interp_state(&states));
+    assert(!vector_destroy_lsp_obj_ptr(stack));
     return 0;
 }

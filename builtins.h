@@ -19,5 +19,7 @@ extern const builtin builtins[];
 lsp_obj *builtin_repr(vector_lsp_obj_ptr *argv);
 lsp_obj *builtin_print(vector_lsp_obj_ptr *argv);
 lsp_obj *builtin_number_sum(vector_lsp_obj_ptr *argv);
+lsp_obj *builtin_number_minus(vector_lsp_obj_ptr *argv);
+lsp_obj *builtin_number_add(vector_lsp_obj_ptr *argv);
 
 #endif // __BUILTINS_H_

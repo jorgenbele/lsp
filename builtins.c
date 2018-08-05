@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <assert.h>
 #include <stdbool.h>
 
@@ -9,9 +10,60 @@
 const builtin builtins[] = {
     {"print", builtin_print},
     {"sum", builtin_number_sum},
+    {"+", builtin_number_sum},
+    {"-", builtin_number_minus},
     {"repr", builtin_repr},
     {NULL, NULL},
 };
+
+lsp_obj *builtin_number_minus(vector_lsp_obj_ptr *argv)
+{
+    if (!argv) {
+        fprintf(stderr, "Runtime error: failed to run `-`, missing arguments!\n");
+        exit(1);
+    } else if (argv->len != 3) {
+        fprintf(stderr, "Runtime error: failed to run `-`, requires 2 arguments!\n");
+        exit(1);
+    }
+
+    // x - y
+    lsp_obj *x = vector_get_lsp_obj_ptr(argv, 1);
+    lsp_obj *y = vector_get_lsp_obj_ptr(argv, 2);
+
+    bool using_float = false;
+    int64_t int_result = 0;
+    double flt_result = 0;
+
+    if (x->type == OBJ_INT) {
+        int_result = x->integer;
+    } else if (x->type == OBJ_FLOAT) {
+        using_float = true;
+        flt_result = x->flt;
+    } else {
+        fprintf(stderr, "Runtime error: failed to run `-`, requres numeric args!\n");
+        exit(1);
+    }
+
+    if (y->type == OBJ_INT) {
+        int_result -= y->integer;
+    } else if (y->type == OBJ_FLOAT) {
+        using_float = true;
+        flt_result -= y->flt;
+    } else {
+        fprintf(stderr, "Runtime error: failed to run `-`, requres numeric args!\n");
+        exit(1);
+    }
+
+    lsp_obj *res = xmalloc(sizeof(*res));
+    if (using_float) {
+        lsp_obj_init(res, OBJ_FLOAT);
+        res->flt = flt_result + int_result;
+    } else {
+        lsp_obj_init(res, OBJ_INT);
+        res->integer = int_result;
+    }
+    return res;
+}
 
 lsp_obj *builtin_repr(vector_lsp_obj_ptr *argv)
 {
