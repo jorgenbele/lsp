@@ -7,9 +7,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <assert.h>
 
 #ifdef MOCKA_TEST
-#warning COMPILING FOR MOCKA TESTS (SOURCE)
 #define STATIC
 #else
 #define STATIC static
@@ -194,19 +194,85 @@ static const char *parse_string(const char *str, vector_token *tokens)
     return ptr;
 }
 
+// Either int or float
+static const char *parse_number(const char *str, vector_token *tokens)
+{
+    const char *ptr = str;
+    if (!isdigit(*ptr) && (*ptr != '+' && *ptr != '-')) {
+        parse_error("Illegal start of number: `%s`\n", str);
+        return NULL;
+    }
+
+    size_t sign_len = 0;
+    if (*ptr == '-' || *ptr == '+') {
+        sign_len++;
+        ptr++;
+    }
+
+    size_t int_len = 0;
+    while (isdigit(*ptr)) {
+        ptr++;
+        int_len++;
+    }
+
+    bool is_float = false;
+    size_t float_len = 0;
+    if (*ptr == '.') {
+        is_float = true;
+        ptr++;
+        float_len++;
+        while (isdigit(*ptr)) {
+            float_len++;
+            ptr++;
+        }
+    }
+
+    size_t tot_len = sign_len + int_len + float_len;
+    char *s = xstrdupn(str, tot_len);
+    enum token_type ttype = is_float ? T_FLOAT : T_INT;
+    token t = {.type=ttype, .is_str=true, .len=tot_len, .str=s};
+    assert(!vector_push_token(tokens, t));
+    return ptr;
+}
+
+static const char *parse_symbol(const char *str, vector_token *tokens)
+{
+    const char *ptr = str;
+
+    if (!IS_SYMBOL_START_CHR(*ptr)) {
+        parse_error("Illegal start char for symbol: `%s`\n", str);
+        return NULL;
+    }
+
+    size_t len = 0;
+    while (*ptr && IS_SYMBOL_CHR(*ptr)) {
+        ptr++;
+        len++;
+    }
+
+    char *s = xstrdupn(str, len);
+    token t = {.type=T_SYMBOL, .is_str=true, .len=len, .str=s};
+    assert(!vector_push_token(tokens, t));
+    return ptr;
+}
+
 static const char *parse_atom(const char *str, vector_token *tokens)
 {
     const char *ptr = str;
 
     // Can either be a symbol, string, or a number
     if (*str == STRING_START_CHR) {
+        // Must be a string.
         return parse_string(ptr, tokens);
-    } else {
-        parse_error("Unrecognized atom: `%s`\n", str);
-        return NULL;
     }
 
-    return ptr;
+    if (isdigit(*str)) {
+        // Must be a number (int or float)
+        return parse_number(ptr, tokens);
+    }
+
+    // Must be a symbol
+    return parse_symbol(ptr, tokens);
 }
 
 static const char *tokenize_str_(const char *str, vector_token *tokens)

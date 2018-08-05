@@ -73,10 +73,11 @@ static void tokenize_string_simple(void **state) {
 
 // parse a simple string
 static void tokenize_string_blanks(void **state) {
-    assert_tokenize("\"test  _\"  ", (token []) {
+    assert_tokenize(" \"test  _\"  ", (token []) {
+            (token){.type=T_BLANK,  .is_str=true, .len=1, .str=" "},
             (token){.type=T_STRING, .is_str=true, .len=7, .str="test  _"},
-            (token){.type=T_BLANK, .is_str=true, .len=2, .str="  "},
-        }, 2);
+            (token){.type=T_BLANK,  .is_str=true, .len=2, .str="  "},
+        }, 3);
 }
 
 // parse multiple strings
@@ -85,6 +86,75 @@ static void tokenize_string_quoted(void **state) {
             (token){.type=T_STRING, .is_str=true, .len=1, .str="\""},
         }, 1);
 }
+
+// parse a simple symbol 
+static void tokenize_symbol_simple(void **state) {
+    assert_tokenize("defun", (token []) {
+            (token){.type=T_SYMBOL, .is_str=true, .len=5, .str="defun"},
+        }, 1);
+}
+
+// parse a more complex symbol
+static void tokenize_symbol_complex(void **state) {
+    assert_tokenize("+module/name", (token []) {
+            (token){.type=T_SYMBOL, .is_str=true, .len=12, .str="+module/name"},
+        }, 1);
+}
+
+// parse a simple int
+static void tokenize_int_simple(void **state) {
+    assert_tokenize("123", (token []) {
+            (token){.type=T_INT, .is_str=true, .len=3, .str="123"},
+        }, 1);
+}
+
+// parse a simple float
+static void tokenize_float_simple(void **state) {
+    assert_tokenize("123.123", (token []) {
+            (token){.type=T_FLOAT, .is_str=true, .len=7, .str="123.123"},
+        }, 1);
+}
+
+// parse an empty list
+static void tokenize_list_empty(void **state) {
+    assert_tokenize("()", (token []) {
+            (token){.type=T_LIST_START, .is_str=false, .len=1, .chr=LIST_START_CHR},
+            (token){.type=T_LIST_END,   .is_str=false, .len=1, .chr=LIST_END_CHR},
+        }, 2);
+}
+
+// parse a simple list
+static void tokenize_list_simple(void **state) {
+    assert_tokenize("(concat \"test\" \"strings\")", (token []) {
+            (token){.type=T_LIST_START, .is_str=false, .len=1, .chr=LIST_START_CHR},
+            (token){.type=T_SYMBOL,     .is_str=true,  .len=6, .str="concat"},
+            (token){.type=T_BLANK,      .is_str=true,  .len=1, .str=" "},
+            (token){.type=T_STRING,     .is_str=true,  .len=4, .str="test"},
+            (token){.type=T_BLANK,      .is_str=true,  .len=1, .str=" "},
+            (token){.type=T_STRING,     .is_str=true,  .len=7, .str="strings"},
+            (token){.type=T_LIST_END,   .is_str=false, .len=1, .chr=LIST_END_CHR},
+        }, 7);
+}
+// parse a simple list
+static void tokenize_list_recursive_1(void **state) {
+    assert_tokenize("(print (concat \"test\" \"ing\") \"strings\")", (token []) {
+            (token){.type=T_LIST_START, .is_str=false, .len=1, .chr=LIST_START_CHR},
+            (token){.type=T_SYMBOL,     .is_str=true,  .len=5, .str="print"},
+            (token){.type=T_BLANK,      .is_str=true,  .len=1, .str=" "},
+            (token){.type=T_LIST_START, .is_str=false, .len=1, .chr=LIST_START_CHR},
+            (token){.type=T_SYMBOL,     .is_str=true,  .len=6, .str="concat"},
+            (token){.type=T_BLANK,      .is_str=true,  .len=1, .str=" "},
+            (token){.type=T_STRING,     .is_str=true,  .len=4, .str="test"},
+            (token){.type=T_BLANK,      .is_str=true,  .len=1, .str=" "},
+            (token){.type=T_STRING,     .is_str=true,  .len=3, .str="ing"},
+            (token){.type=T_LIST_END,   .is_str=false, .len=1, .chr=LIST_END_CHR},
+            (token){.type=T_BLANK,      .is_str=true,  .len=1, .str=" "},
+            (token){.type=T_STRING,     .is_str=true,  .len=7, .str="strings"},
+            (token){.type=T_LIST_END,   .is_str=false, .len=1, .chr=LIST_END_CHR},
+        }, 13);
+}
+
+// parse a list containing a symbol and strings
 
 int main(void)
 {
@@ -98,9 +168,23 @@ int main(void)
         cmocka_unit_test(sstr_len_single_escaped),
 
         // tokenize_str
+        // string
         cmocka_unit_test(tokenize_string_simple),
         cmocka_unit_test(tokenize_string_blanks),
         cmocka_unit_test(tokenize_string_quoted),
+
+        // symbol
+        cmocka_unit_test(tokenize_symbol_simple),
+        cmocka_unit_test(tokenize_symbol_complex),
+
+        // number
+        cmocka_unit_test(tokenize_int_simple),
+        cmocka_unit_test(tokenize_float_simple),
+
+        // list
+        cmocka_unit_test(tokenize_list_empty),
+        cmocka_unit_test(tokenize_list_simple),
+        cmocka_unit_test(tokenize_list_recursive_1),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);    
 }
