@@ -25,15 +25,16 @@ int main(int argc, const char *argv[])
             token token = vector_get_token(&tokens, i);
             token_print(&token);
         }
-        tokens.len = 0; // WARNING
-    }
-    
 
-    // Free token strings
-    for (size_t i = 0; i < tokens.len; i++) {
-        token token = vector_get_token(&tokens, i);
-        token_free(&token);
+        for (size_t i = 0; i < tokens.len; i++) {
+            token token = vector_get_token(&tokens, i);
+            token_free(&token);
+        }
+        tokens.len = 0; // warning
     }
+
+    free(s);
+
 
     assert(!vector_destroy_token(&tokens));
     return 0;

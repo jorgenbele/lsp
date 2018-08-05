@@ -364,5 +364,5 @@ void token_print(const token *tok)
             str_ptr = tok->str;
             break;
     }
-    printf("type: %s, len: %lu, str: `%s`\n", TOKEN_TYPE_STR(tok->type), tok->len, str_ptr);
+    printf("type: %-14s, len: %lu, str: `%s`\n", TOKEN_TYPE_STR(tok->type), tok->len, str_ptr);
 }
