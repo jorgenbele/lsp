@@ -7,6 +7,7 @@
 #define parse_error printf
 
 void *xmalloc(size_t n);
+void *xcalloc(size_t nmembs, size_t n);
 char *xstrdupn(const char *s, size_t n);
 
 

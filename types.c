@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include "types.h"
+#include "utils.h"
 
 const char *obj_type_str[] = {
     "OBJ_GENERIC", "OBJ_LIST", "OBJ_INT", "OBJ_FLOAT", "OBJ_STRING", "OBJ_SYMBOL"
@@ -28,13 +29,13 @@ int lsp_obj_init_w(lsp_obj *obj, lsp_obj_type type, void *data, size_t size)
 
         case OBJ_INT:
             obj->type = type;
-            obj->size = sizeof(obj->integer);
+            obj->size = 0;
             obj->integer = 0;
             break;
 
         case OBJ_FLOAT:
             obj->type = type;
-            obj->size = sizeof(obj->flt);
+            obj->size = 0;
             obj->flt = 0.0;
             break;
 
@@ -89,8 +90,15 @@ int lsp_obj_destroy(lsp_obj *obj)
             break;
         }
 
+        case OBJ_SYMBOL: {
+            lsp_symbol *symb = (lsp_symbol *) obj;
+            // TODO: free data?
+            free(symb->symb);
+            symb->symb = NULL;
+            break;
+        }
+
         case OBJ_GENERIC:
-        default:
             // ...
             free(obj->ptr);
             obj->ptr = NULL;
@@ -107,7 +115,7 @@ int lsp_obj_destroy(lsp_obj *obj)
 int lsp_str_init_w(lsp_str *str, void *data, size_t len)
 {
     str->type = OBJ_STRING;
-    str->ptr = data;
+    str->ptr = xstrdupn((char *) data, len);
     str->size = len;
     str->len = len;
     return 0; 

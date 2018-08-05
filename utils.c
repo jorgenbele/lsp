@@ -4,9 +4,19 @@
 
 void *xmalloc(size_t n)
 {
-    char *ns = malloc(n);
+    void *ns = malloc(n);
     if (!ns) {
         fprintf(stderr, "xmalloc: Fatal, malloc failed!\n");
+        exit(1);
+    }
+    return ns;
+}
+
+void *xcalloc(size_t nmembs, size_t n)
+{
+    void *ns = calloc(nmembs, n);
+    if (!ns) {
+        fprintf(stderr, "xcalloc: Fatal, calloc failed!\n");
         exit(1);
     }
     return ns;

@@ -52,12 +52,10 @@ int exec_tokens(vector_token *tokens)
                 }
 
                 // Squash the stack into a lsp_list object.
-                fprintf(stderr, "SQUASHING THE STACK!\n");
                 lsp_list lst;
                 assert(!vector_init_lsp_obj_ptr(&lst.vec));
                 for (size_t i = list_start; i < stack.len; i++) {
                     lsp_obj *obj = vector_get_lsp_obj_ptr(&stack, i);
-                    fprintf(stderr, "SQUASHING: %s, %lu\n", obj_type_str[obj->type], lst.vec.len);
                     assert(!stack.error);
                     vector_push_lsp_obj_ptr(&lst.vec, obj);
                     assert(!lst.vec.error);
@@ -79,7 +77,7 @@ int exec_tokens(vector_token *tokens)
                 } else {
                     fprintf(stderr, "symb: %s, `%s`, %lu\n", obj_type_str[symb->type], symb->symb, symb->symb_len);
                     assert(symb->type == OBJ_SYMBOL);
-                    void (*func_ptr)(lsp_obj **objs, size_t len) = symb_get_func(symb->symb);
+                    BUILTIN_FUNC_PTR(func_ptr) = symb_get_func(symb->symb);
                     if (!func_ptr) {
                         fprintf(stderr, "Runtime error: `%s` is not a valid function!\n", symb->symb);
                         // TODO: below
@@ -88,13 +86,12 @@ int exec_tokens(vector_token *tokens)
                     fprintf(stderr, "Runtime log: executing `%s`, argc:%lu!\n", symb->symb, lst.vec.len-1);
 
                     if (lst.vec.len <= 1) {
-                        func_ptr(NULL, 0);
+                        vector_push_lsp_obj_ptr(&stack, func_ptr(NULL));
                     } else {
-                        func_ptr(lst.vec.data+1, lst.vec.len-1);
+                        vector_push_lsp_obj_ptr(&stack, func_ptr(&lst.vec));
                     }
                 }
 
-                // TODO free objects.
                 vector_destroy_lsp_obj_ptr(&lst.vec);
 
                 //  reset
@@ -133,11 +130,27 @@ int exec_tokens(vector_token *tokens)
                 break;
             }
 
-            case T_FLOAT:
+            case T_FLOAT: {
+                // Convert to float object and push to stack
+                assert(t.is_str && t.str);
+                lsp_obj *flt = calloc(1, sizeof(*flt));
+                assert(flt);
+                assert(!lsp_obj_init((lsp_obj *)flt, OBJ_FLOAT));
+                flt->flt = atof(t.str);
+                vector_push_lsp_obj_ptr(&stack, (lsp_obj *) flt);
                 break;
+            }
 
-            case T_INT:
+            case T_INT: {
+                // Convert to int object and push to stack
+                assert(t.is_str && t.str);
+                lsp_obj *integer = calloc(1, sizeof(*integer));
+                assert(integer);
+                assert(!lsp_obj_init((lsp_obj *) integer, OBJ_INT));
+                integer->integer = atoll(t.str);
+                vector_push_lsp_obj_ptr(&stack, (lsp_obj *) integer);
                 break;
+            }
 
             case T_BLANK:
             case T_NEWLINE:
@@ -150,6 +163,19 @@ int exec_tokens(vector_token *tokens)
     }
 
     // TODO: free stack objects
+    while (!stack.error) {
+        lsp_obj *obj = vector_pop_lsp_obj_ptr(&stack);
+        vector_lsp_obj_ptr temp;
+        assert(!vector_init_w_lsp_obj_ptr(&temp, (lsp_obj *[]){NULL, obj}, 2));
+        builtin_print(&temp);
+        putchar('\n');
+
+        vector_destroy_lsp_obj_ptr(&temp);
+        if (obj) {
+            lsp_obj_destroy(obj);
+            free(obj);
+        }
+    }
 
     assert(!vector_destroy_lsp_obj_ptr(&stack));
     return 0;

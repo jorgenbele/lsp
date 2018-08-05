@@ -5,7 +5,7 @@
 
 #include "types.h"
 
-#define BUILTIN_FUNC_PTR(name) int (*name)(lsp_obj **objs, size_t len)
+#define BUILTIN_FUNC_PTR(name) lsp_obj_ptr (*name)(vector_lsp_obj_ptr *argv)
 
 struct builtin {
     const char *symbol;
@@ -15,6 +15,7 @@ typedef struct builtin builtin;
 
 extern const builtin builtins[];
 
-int builtin_print(lsp_obj **objs, size_t len);
+lsp_obj *builtin_print(vector_lsp_obj_ptr *argv);
+lsp_obj *builtin_number_sum(vector_lsp_obj_ptr *argv);
 
 #endif // __BUILTINS_H_
