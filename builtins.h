@@ -15,6 +15,8 @@ typedef struct builtin builtin;
 
 extern const builtin builtins[];
 
+//lsp_obj *builtin_repr(vector_lsp_obj_ptr *argv);
+lsp_obj *builtin_repr(vector_lsp_obj_ptr *argv);
 lsp_obj *builtin_print(vector_lsp_obj_ptr *argv);
 lsp_obj *builtin_number_sum(vector_lsp_obj_ptr *argv);
 

@@ -16,7 +16,7 @@ enum lsp_obj_type {OBJ_GENERIC, OBJ_LIST, OBJ_INT, OBJ_FLOAT, OBJ_STRING, OBJ_SY
 typedef enum lsp_obj_type lsp_obj_type;
 
 extern const char *obj_type_str[];
-
+extern const char *obj_type_str_short[];
 
 /*
  * type is an enum which determines what type the object
@@ -73,7 +73,14 @@ typedef struct lsp_symbol lsp_symbol;
 int lsp_obj_init_w(lsp_obj *obj, lsp_obj_type type, void *data, size_t size);
 int lsp_obj_init(lsp_obj *obj, lsp_obj_type type);
 int lsp_obj_destroy(lsp_obj *obj);
+int lsp_obj_print(lsp_obj *obj);
+int lsp_obj_print_repr(lsp_obj *obj);
+lsp_str *lsp_obj_repr(lsp_obj *obj);
+int lsp_obj_repr_str(lsp_obj *obj, char **out, size_t *size);
 
-int lsp_str_init_w(lsp_str *str, void *data, size_t size);
+int lsp_str_init_w(lsp_str *str, const void *data, size_t size);
+int lsp_str_init(lsp_str *str);
+int lsp_str_destroy(lsp_str *str);
+int lsp_str_cat_n(lsp_str *lstr, const char *str, size_t str_len);
 
 #endif // __TYPES_H_

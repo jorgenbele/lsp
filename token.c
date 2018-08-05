@@ -1,5 +1,3 @@
-#include "token.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +6,10 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <assert.h>
+
+#include "token.h"
+#include "utils.h"
+
 
 #ifdef MOCKA_TEST
 #define STATIC
@@ -27,28 +29,6 @@ const char *token_type_str[] = {
 //static const struct token default_token = {T_UNKNOWN, 0};
 DEF_VECTOR_FUNCS(token, struct token, ((const struct token) {T_UNKNOWN, 0}));
 
-#define parse_error printf
-
-static void *xmalloc(size_t n)
-{
-    char *ns = malloc(n);
-    if (!ns) {
-        fprintf(stderr, "xmalloc: Fatal, malloc failed!\n");
-        exit(1);
-    }
-    return ns;
-}
-
-static char *xstrdupn(const char *s, size_t n)
-{
-    char *ns = calloc(1, n + 1);
-    if (!ns) {
-        fprintf(stderr, "xstrdupn: Fatal, calloc failed!\n");
-        exit(1);
-    }
-    strncpy(ns, s, n);
-    return ns;
-}
 
 #if 0
 static bool expect(const char *str, const char *expected)

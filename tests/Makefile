@@ -9,7 +9,8 @@ vector_test:
 
 token_test:
 	$(CC) $(CFLAGS) -DMOCKA_TEST -o token.o -c ../token.c
-	$(CC) $(CFLAGS) -DMOCKA_TEST -o token_test token_test.c token.o $(LIBS)
+	$(CC) $(CFLAGS) -DMOCKA_TEST -o utils.o -c ../utils.c
+	$(CC) $(CFLAGS) -DMOCKA_TEST -o token_test token_test.c token.o utils.o $(LIBS)
 
 runall: runvectortest runtokentest
 

@@ -97,14 +97,14 @@ enum {ERR_VECTOR_EMPTY=1};
         return v->data[v->len-1];                       \
     }
 
-#define DEF_VECTOR_GET(name, type, def)                         \
-    type vector_get_##name(struct vector_##name *v, size_t i)   \
-    {                                                           \
-        if (i + 1 > v->len) {                                   \
-            v->error = ERR_VECTOR_EMPTY;                        \
-            return def;                                         \
-        }                                                       \
-        return v->data[i];                                      \
+#define DEF_VECTOR_GET(name, type, def)                             \
+    type vector_get_##name(struct vector_##name *v, size_t i) \
+    {                                                               \
+        if (i + 1 > v->len) {                                       \
+            v->error = ERR_VECTOR_EMPTY;                            \
+            return def;                                             \
+        }                                                           \
+        return v->data[i];                                          \
     }
 
 #define DEF_VECTOR_PROTOTYPES(name, type)                           \

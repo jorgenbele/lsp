@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include "vector.h"
+#include "interp.h"
 #include "token.h"
 
 int main(int argc, const char *argv[])
@@ -25,6 +26,9 @@ int main(int argc, const char *argv[])
             token token = vector_get_token(&tokens, i);
             token_print(&token);
         }
+
+        // execute interpreter
+        assert(!exec_tokens(&tokens));
 
         for (size_t i = 0; i < tokens.len; i++) {
             token token = vector_get_token(&tokens, i);

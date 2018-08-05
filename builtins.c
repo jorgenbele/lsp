@@ -4,12 +4,50 @@
 
 #include "builtins.h"
 #include "utils.h"
+#include "types.h"
 
 const builtin builtins[] = {
     {"print", builtin_print},
     {"sum", builtin_number_sum},
+    {"repr", builtin_repr},
     {NULL, NULL},
 };
+
+lsp_obj *builtin_repr(vector_lsp_obj_ptr *argv)
+{
+    if (!argv) {
+        return NULL;
+    }
+
+    lsp_str *lstr = xcalloc(1, sizeof (*lstr));
+    lsp_str_init(lstr);
+
+    char *buf = NULL;
+    size_t buf_s = 0;
+
+    for (size_t i = 1; i < argv->len; i++) {
+        lsp_obj *obj = vector_get_lsp_obj_ptr(argv, i);
+        assert(obj);
+
+        if (lsp_obj_repr_str(obj, &buf, &buf_s)) {
+            free(buf);
+            lsp_str_destroy(lstr);
+            fprintf(stderr, "Runtime error: failed to run `repr`!\n");
+            exit(1);
+            //return NULL;
+        }
+
+        assert(!lsp_str_cat_n(lstr, buf, strlen(buf)));
+        memset(buf, 0, buf_s);
+
+        if (i + 1 < argv->len) {
+            lsp_str_cat_n(lstr, " ", 1);
+        }
+    }
+
+    free(buf);
+    return (lsp_obj *) lstr;
+}
 
 lsp_obj *builtin_print(vector_lsp_obj_ptr *argv)
 {
@@ -20,47 +58,9 @@ lsp_obj *builtin_print(vector_lsp_obj_ptr *argv)
     // The first ptr in argv is the symbol which was used to call this
     // function. Skip it.
     for (size_t i = 1; i < argv->len; i++) {
-        fprintf(stderr, "printing: %lu out of %lu\n", i, argv->len);
-        const lsp_obj *ptr = vector_get_lsp_obj_ptr(argv, i);
-        assert(!argv->error);
-        assert(ptr);
-        switch (ptr->type) {
-            case OBJ_STRING:
-                printf("%s", ptr->ptr);
-                break;
-            case OBJ_INT:
-                printf("%ld", ptr->integer);
-                break;
-            case OBJ_FLOAT:
-                printf("%lf", ptr->flt);
-                break;
-
-            case OBJ_SYMBOL: {
-                lsp_symbol *symb = (lsp_symbol *) ptr;
-                printf("#symbol:%s,%lu", symb->symb, symb->symb_len);
-                break;
-            }
-
-            case OBJ_GENERIC: {
-                printf("#generic:size:%lu", ptr->size);
-                break;
-            }
-                
-            case OBJ_LIST:
-                putchar('(');
-                // TODO:
-                lsp_list *lst = (lsp_list *) ptr; // Create the memory to be passed to the function for (size_t i = 0; i < lst->vec.len; i++) {
-                for (size_t k = 0; k < lst->vec.len; k++) {
-                    vector_lsp_obj_ptr temp;
-                    vector_init_w_lsp_obj_ptr(&temp, (lsp_obj *[]) {vector_get_lsp_obj_ptr(&lst->vec, k)}, 1);
-                    if (k + 1 < lst->vec.len) {
-                        putchar(',');  
-                    } 
-                    vector_destroy_lsp_obj_ptr(&temp);
-                }
-                putchar(')');
-                break;
-        }
+        lsp_obj *obj = vector_get_lsp_obj_ptr(argv, i);
+        assert(obj);
+        lsp_obj_print(obj);
         if (i + 1 < argv->len) {
             putchar(' ');
         }
@@ -92,7 +92,7 @@ lsp_obj *builtin_number_sum(vector_lsp_obj_ptr *argv)
                 break;
 
             default:
-                fprintf(stderr, "Runtime error: `sum` expected number!\n");
+                fprintf(stderr, "Runtime error: `sum` expected number, got %s!\n", obj_type_str[ptr->type]);
                 exit(1);
                 break;
         }
