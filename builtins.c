@@ -12,9 +12,46 @@ const builtin builtins[] = {
     {"sum", builtin_number_sum},
     {"+", builtin_number_sum},
     {"-", builtin_number_minus},
+    {"if", builtin_if},
     {"repr", builtin_repr},
     {NULL, NULL},
 };
+
+void *builtin_get_func(const char *name)
+{
+    const builtin *ptr = builtins;
+    while (ptr && ptr->symbol && ptr->func) {
+        if (!strcmp(ptr->symbol, name)) {
+            return ptr->func;
+        }
+        ptr++;
+    }
+    return  NULL;
+}
+
+// (if <condition> <on-condition-true> <on-condition-false>)
+lsp_obj *builtin_if(vector_lsp_obj_ptr *argv)
+{
+    if (!argv) {
+        fprintf(stderr, "Runtime error: failed to run `if`, missing arguments!\n");
+        exit(1);
+    } else if (argv->len < 3) {
+        fprintf(stderr, "Runtime error: failed to run `if`, requires at least 2 arguments!\n");
+        exit(1);
+    } else if (argv->len > 4) {
+        fprintf(stderr, "Runtime error: failed to run `if`, takes maximum 4 arguments!\n");
+        exit(1);
+    }
+
+    lsp_obj *condition = vector_get_lsp_obj_ptr(argv, 1);
+    if (lsp_obj_is_true(condition)) {
+        return vector_get_lsp_obj_ptr(argv, 2);
+    } else if (argv->len == 4) {
+        return vector_get_lsp_obj_ptr(argv, 3);
+    }
+    return NULL;
+}
+
 
 lsp_obj *builtin_number_minus(vector_lsp_obj_ptr *argv)
 {

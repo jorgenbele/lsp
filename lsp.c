@@ -46,12 +46,35 @@ int main(int argc, const char *argv[])
         }
         fprintf(stdout, "===============\n");
 
+        // execute
+        lsp_list *rlst = execute_ast(ast);
+        assert(rlst);
+        fprintf(stdout, "\n\n===== RLST =====\n");
+        for (size_t i = 0; i < rlst->vec.len; i++) {
+            lsp_obj *obj = vector_get_lsp_obj_ptr(&rlst->vec, i);
+            if (obj) {
+                //assert(obj);
+                printf("repr: ");
+                lsp_obj_print_repr(obj);
+            } else {
+                printf("generic#NULL\n");
+            }
+        }
+        fprintf(stdout, "================\n");
+
+        lsp_obj_destroy((lsp_obj *) rlst);
+        free(rlst);
+
         lsp_obj_destroy((lsp_obj *) ast);
         free(ast);
     }
 
     free(s);
 
+    while (tokens.len > 0 && !tokens.error) {
+        token token = vector_pop_token(&tokens);
+        token_free(&token);
+    }
     assert(!vector_destroy_token(&tokens));
     return 0;
 }

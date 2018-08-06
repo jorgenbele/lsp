@@ -18,6 +18,7 @@ typedef struct interp_state interp_state;
 DEF_VECTOR_HEADER(interp_state, interp_state);
 
 lsp_list *create_ast(vector_token *tokens);
+lsp_list *execute_ast(lsp_list *ast);
 
 // DEPRECATED
 int exec_tokens(vector_token *tokens);

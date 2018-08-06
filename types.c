@@ -4,6 +4,7 @@
 
 #include "types.h"
 #include "utils.h"
+#include "builtins.h" // circular dependency ???
 
 const char *obj_type_str[] = {
     "OBJ_GENERIC", "OBJ_LIST", "OBJ_INT", "OBJ_FLOAT", "OBJ_STRING", "OBJ_SYMBOL"
@@ -20,6 +21,39 @@ DEF_VECTOR_FUNCS(lsp_obj_ptr, lsp_obj_ptr, NULL);
  * Object
  */
 enum lsp_obj_err {LSP_OBJ_ERR_MALLOC};
+
+bool lsp_obj_is_true(lsp_obj *obj)
+{
+    switch (obj->type) {
+        case OBJ_STRING: {
+            // is true if not empty
+            // NOTE size is actually the length of the string.
+            lsp_str *str = (lsp_str*) obj;
+            return str->len > 0;
+        }
+
+        case OBJ_INT:
+            return obj->integer;
+
+        case OBJ_FLOAT:
+            return obj->flt;
+
+        case OBJ_SYMBOL: {
+            // is true if it exists.
+            lsp_symbol *symb = (lsp_symbol *) obj;
+            return (builtin_get_func(symb->symb));
+        }
+
+        case OBJ_GENERIC:
+            return obj->ptr;
+
+        case OBJ_LIST: {
+            // is true if not empty
+            lsp_list *lst = (lsp_list *) obj;
+            return lst->vec.len > 0;
+        }
+    }
+}
 
 int lsp_obj_init_w(lsp_obj *obj, lsp_obj_type type, void *data, size_t size)
 {

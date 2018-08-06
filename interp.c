@@ -18,18 +18,6 @@ lsp_list default_lsp_list = {
 #endif
 DEF_VECTOR_FUNCS(lsp_list_ptr, lsp_list_ptr, NULL);
 
-static void *symb_get_func(const char *name)
-{
-    const builtin *ptr = builtins;
-    while (ptr && ptr->symbol && ptr->func) {
-        if (!strcmp(ptr->symbol, name)) {
-            return ptr->func;
-        }
-        ptr++;
-    }
-    return  NULL;
-}
-
 
 // Create the abstract syntax tree from the provided
 // tokens. The AST is itself stored as a lsp_lst,
@@ -168,7 +156,64 @@ lsp_list *create_ast(vector_token *tokens)
     return ast;
 }
 
+lsp_list *execute_ast(lsp_list *ast)
+{
+    lsp_list *rlst = (lsp_list *) lsp_obj_new(OBJ_LIST);
+    assert(rlst);
 
+    for (size_t i = 0; i < ast->vec.len; i++) {
+        // NOTE NOT CONST
+        lsp_obj *obj = vector_get_lsp_obj_ptr(&ast->vec, i);
+        assert(obj);
+
+        switch (obj->type) {
+            case OBJ_STRING:
+            case OBJ_INT:
+            case OBJ_FLOAT:
+            case OBJ_SYMBOL:
+            case OBJ_GENERIC:
+                // resolve to itslef
+                vector_push_lsp_obj_ptr(&rlst->vec, obj);
+                break;
+
+            case OBJ_LIST: {
+                // if the first element of the list is
+                // a symbol, then execute the function call
+                // on the symbol and push the result
+                lsp_list *lst = (lsp_list *) obj;
+                if (lst->vec.len > 0) {
+                    lsp_obj *front = vector_get_lsp_obj_ptr(&lst->vec, 0);
+                    assert(front);
+
+                    if (front->type == OBJ_SYMBOL) {
+                        // TODO actually to real symbol resolution
+                        // to make sure that it is a function and
+                        // not a variable/constant.
+                        lsp_symbol *symb = (lsp_symbol *) front;
+                        BUILTIN_FUNC_PTR(fptr) = builtin_get_func(symb->symb);
+                        if (fptr) {
+                            // executed
+                            fprintf(stderr, "Runtime log: executing %s\n",
+                                    symb->symb);
+                            lsp_obj *robj = fptr(&lst->vec);
+                            vector_push_lsp_obj_ptr(&rlst->vec, robj);
+                            break;
+                        }
+                        fprintf(stderr, "Runtime error: unable to "
+                                "resolve symbol: %s\n",
+                                symb->symb);
+                        exit(1);
+                    }
+                    // first element was not a symbol
+                }
+                // was not a function call, resolve to itself
+                vector_push_lsp_obj_ptr(&rlst->vec, obj);
+                break;
+            }
+        }
+    }
+    return rlst;
+}
 
 vector_lsp_obj_ptr *exec_tokens_(vector_token *tokens)
 {
@@ -231,7 +276,7 @@ vector_lsp_obj_ptr *exec_tokens_(vector_token *tokens)
                 } else if (symb->type == OBJ_SYMBOL) {
                     // Try to resolve the symbol
                     //fprintf(stderr, "symb: %s, `%s`, %lu\n", obj_type_str[symb->type], symb->symb, symb->symb_len);
-                    BUILTIN_FUNC_PTR(func_ptr) = symb_get_func(symb->symb);
+                    BUILTIN_FUNC_PTR(func_ptr) = builtin_get_func(symb->symb);
                     if (!func_ptr) {
                         fprintf(stderr, "Runtime error: `%s` is not a valid function!\n", symb->symb);
                         // TODO: below
