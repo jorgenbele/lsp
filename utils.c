@@ -84,10 +84,10 @@ int alloc_strcatf(char **out, size_t *size, const char *fmt, ...)
 
     char *end = *out + out_len;
 
-    if (vsnprintf(end, *size, fmt, va) <= 0) {
+    if (vsnprintf(end, *size, fmt, va) < 0) {
         // does not free.
         va_end(va);
-        fprintf(stderr, "alloc_strcatf: Fatal, vsnprintf failed!\n");
+        fprintf(stderr, "alloc_strcatf: Fatal, vsnprintf failed: %lu!\n", *size);
         exit(1);
     }
     va_end(va);
