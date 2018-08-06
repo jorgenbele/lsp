@@ -19,6 +19,7 @@ DEF_VECTOR_HEADER(interp_state, interp_state);
 
 lsp_list *create_ast(vector_token *tokens);
 lsp_list *execute_ast(lsp_list *ast);
+lsp_obj *evaluate_list(lsp_list *lst);
 
 // DEPRECATED
 int exec_tokens(vector_token *tokens);

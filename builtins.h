@@ -24,5 +24,7 @@ lsp_obj *builtin_number_minus(vector_lsp_obj_ptr *argv);
 lsp_obj *builtin_number_add(vector_lsp_obj_ptr *argv);
 lsp_obj *builtin_if(vector_lsp_obj_ptr *argv);
 lsp_obj *builtin_repr(vector_lsp_obj_ptr *argv);
+lsp_obj *builtin_list(vector_lsp_obj_ptr *argv);
+lsp_obj *builtin_eval(vector_lsp_obj_ptr *argv);
 
 #endif // __BUILTINS_H_

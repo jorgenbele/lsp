@@ -6,6 +6,7 @@
 #include "builtins.h"
 #include "utils.h"
 #include "types.h"
+#include "interp.h"
 
 const builtin builtins[] = {
     {"print", builtin_print},
@@ -14,6 +15,8 @@ const builtin builtins[] = {
     {"-", builtin_number_minus},
     {"if", builtin_if},
     {"repr", builtin_repr},
+    {"list", builtin_list},
+    {"eval", builtin_eval},
     {NULL, NULL},
 };
 
@@ -28,6 +31,46 @@ void *builtin_get_func(const char *name)
     }
     return  NULL;
 }
+
+// evalates the arguments
+// (eval <list>) -> <result>
+// example: (eval (list + 1 2 3)) = 6
+lsp_obj *builtin_eval(vector_lsp_obj_ptr *argv)
+{
+    if (!argv) {
+        fprintf(stderr, "Runtime error: failed to run `eval`, missing arguments!\n");
+        exit(1);
+    } else if (argv->len > 2) {
+        fprintf(stderr, "Runtime error: failed to run `eval`, takes maximum 1 arguments!\n");
+        exit(1);
+    }
+    lsp_obj *obj = vector_get_lsp_obj_ptr(argv, 1);
+    assert(obj);
+    assert(obj->type == OBJ_LIST);
+    lsp_list *lst = (lsp_list *) obj;
+    return evaluate_list(lst);
+}
+
+// returns a list of its arguments
+lsp_obj *builtin_list(vector_lsp_obj_ptr *argv)
+{
+    if (!argv || argv->len < 2) {
+        // Empty list
+        return lsp_obj_new(OBJ_LIST);
+    }
+
+    lsp_list *lst =  (lsp_list *) lsp_obj_new(OBJ_LIST);
+    assert(lst);
+    for (size_t i = 1; i < argv->len; i++) {
+        lsp_obj *obj = vector_get_lsp_obj_ptr(argv, i);
+        assert(obj);
+        lsp_obj *clone = lsp_obj_clone(obj);
+        assert(clone);
+        assert(!vector_push_lsp_obj_ptr(&lst->vec, clone));
+    }
+    return (lsp_obj *) lst;
+}
+
 
 // (if <condition> <on-condition-true> <on-condition-false>)
 lsp_obj *builtin_if(vector_lsp_obj_ptr *argv)
@@ -44,13 +87,27 @@ lsp_obj *builtin_if(vector_lsp_obj_ptr *argv)
     }
 
     lsp_obj *condition = vector_get_lsp_obj_ptr(argv, 1);
+    lsp_obj *to_evaluate = NULL;
+
     if (lsp_obj_is_true(condition)) {
-        return lsp_obj_clone(vector_get_lsp_obj_ptr(argv, 2));
+        to_evaluate = lsp_obj_clone(vector_get_lsp_obj_ptr(argv, 2));
     } else if (argv->len == 4) {
-        return lsp_obj_clone(vector_get_lsp_obj_ptr(argv, 3));
+        to_evaluate = lsp_obj_clone(vector_get_lsp_obj_ptr(argv, 3));
     }
-    return NULL;
+    if (!to_evaluate) {
+        return NULL;
+    }
+
+    // evaluate only if list
+    if (to_evaluate->type == OBJ_LIST) {
+        lsp_obj *ret = evaluate_list((lsp_list *) to_evaluate);
+        lsp_obj_destroy(to_evaluate);
+        free(to_evaluate);
+        return ret;
+    }
+    return to_evaluate;
 }
+
 
 
 lsp_obj *builtin_number_minus(vector_lsp_obj_ptr *argv)
