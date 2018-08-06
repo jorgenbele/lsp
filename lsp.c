@@ -27,11 +27,15 @@ int main(int argc, const char *argv[])
             token_print(&token);
         }
 
-        // execute interpreter
-        //assert(!exec_tokens(&tokens));
-
         // create ast
         lsp_list *ast = create_ast(&tokens);
+
+        // reset the vector
+        while (tokens.len > 0 && !tokens.error) {
+            token token = vector_pop_token(&tokens);
+            token_free(&token);
+        }
+
         assert(ast);
 
         fprintf(stdout, "\n\n===== AST =====\n");
@@ -44,16 +48,9 @@ int main(int argc, const char *argv[])
 
         lsp_obj_destroy((lsp_obj *) ast);
         free(ast);
-
-        for (size_t i = 0; i < tokens.len; i++) {
-            token token = vector_get_token(&tokens, i);
-            token_free(&token);
-        }
-        tokens.len = 0; // warning
     }
 
     free(s);
-
 
     assert(!vector_destroy_token(&tokens));
     return 0;

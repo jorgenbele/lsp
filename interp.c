@@ -58,6 +58,22 @@ lsp_list *create_ast(vector_token *tokens)
     vector_lsp_list_ptr lst_stack;
     assert(!vector_init_lsp_list_ptr(&lst_stack));
 
+    // Macro used to push to either the top lst_stack list,
+    // or directly to ast.
+#define PUSH_TOP_LIST_STACK_OR_AST(ptr)                             \
+    do {                                                            \
+        lsp_list *below = vector_peek_lsp_list_ptr(&lst_stack);     \
+        if (!below) {                                               \
+            fprintf(stderr,                                         \
+                    "AST: reached end of list outside of list, "    \
+                    "pushing to ast directly");                     \
+            below = ast;                                            \
+        }                                                           \
+        vector_push_lsp_obj_ptr(&below->vec, (lsp_obj *) ptr);      \
+        fprintf(stderr, "AST: pushing list!\n");                    \
+        lsp_obj_print_repr((lsp_obj *) ptr);                        \
+    } while (0);
+
     for (size_t i = 0; i < tokens->len; i++) {
         const token t = vector_get_token(tokens, i);
         assert(!tokens->error);
@@ -73,37 +89,50 @@ lsp_list *create_ast(vector_token *tokens)
             }
 
             case T_LIST_END: {
-                // Push the list at the top of the stack
-                // to the list of the one below it.
+                // Push either to the lst_stack OR directly to the AST,
+                // see the PUSH_TOP_LIST_STACK_OR_AST marco.
+                // This means that at the end the lst_stack will
+                // empty as long as all lists are terminated.
                 lsp_list *top = vector_pop_lsp_list_ptr(&lst_stack);
-                lsp_list *below = vector_peek_lsp_list_ptr(&lst_stack);
-                if (!below) {
-                    // This is the top.
-                    fprintf(stderr,
-                            "AST: reached end of list outside of list, "
-                            "pushing to ast directly");
-                    below = ast;
-                }
-                // Add the top list to the one below.
-                vector_push_lsp_obj_ptr(&below->vec, (lsp_obj *) top);
+                PUSH_TOP_LIST_STACK_OR_AST(top);
                 fprintf(stderr, "AST: pushing list!\n");
                 lsp_obj_print_repr((lsp_obj *) top);
                 break;
             }
 
             case T_SYMBOL: {
+                assert(t.is_str);
+                lsp_symbol *symb = (lsp_symbol *) lsp_obj_new(OBJ_SYMBOL);
+                assert(symb);
+                symb->symb = xstrdupn(t.str, t.len);
+                PUSH_TOP_LIST_STACK_OR_AST(symb);
                 break;
             }
 
             case T_STRING: {
+                assert(t.is_str);
+                lsp_str *lstr = (lsp_str *) lsp_obj_new_w(OBJ_STRING,
+                                                          t.str, t.len);
+                assert(lstr);
+                PUSH_TOP_LIST_STACK_OR_AST(lstr);
                 break;
             }
 
             case T_INT: {
+                assert(t.is_str);
+                lsp_obj *integer = lsp_obj_new(OBJ_INT);
+                assert(integer);
+                integer->integer = atoll(t.str);
+                PUSH_TOP_LIST_STACK_OR_AST(integer);
                 break;
             }
 
             case T_FLOAT: {
+                assert(t.is_str);
+                lsp_obj *flt = lsp_obj_new(OBJ_FLOAT);
+                assert(flt);
+                flt->flt = atof(t.str);
+                PUSH_TOP_LIST_STACK_OR_AST(flt);
                 break;
             }
 
@@ -118,16 +147,24 @@ lsp_list *create_ast(vector_token *tokens)
         }
     }
 
-    // Copy elements from lst_stack to the ast.
-    for (size_t i = 0; i < lst_stack.len && !lst_stack.error; i++) {
-        lsp_list *lst = (vector_get_lsp_list_ptr(&lst_stack, i));
-        assert(lst);
-        vector_push_lsp_obj_ptr(&ast->vec, (lsp_obj *) lst);
+    if (lst_stack.len > 0) {
+        // Destroy the lst_stack and the ast
+        while (lst_stack.len > 0 && !lst_stack.error) {
+            lsp_list *l = vector_pop_lsp_list_ptr(&lst_stack);
+            lsp_obj_destroy((lsp_obj *) l);
+            free(l);
+        }
+        vector_destroy_lsp_list_ptr(&lst_stack);
+        lsp_obj_destroy((lsp_obj *) ast);
+        free(ast);
+
+        fprintf(stderr, "Runtime error: missing parenthesis?\n");
+        return NULL;
     }
+
     // Destroy the lst_stack vector (not its contents)
     vector_destroy_lsp_list_ptr(&lst_stack);
 
-    // TODO cleanup...
     return ast;
 }
 
