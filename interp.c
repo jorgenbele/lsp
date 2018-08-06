@@ -6,6 +6,17 @@
 #include "utils.h"
 
 DEF_VECTOR_FUNCS(interp_state, interp_state, ((interp_state) {NORMAL, 0}));
+#if 0
+lsp_list default_lsp_list = {
+    .type = OBJ_LIST,
+    .size = 0,
+    .ptr = NULL,
+    .vec = (vector_lsp_obj_ptr) {
+        .size = 0, .len = 0, .error = 0, .allocs = 0, .data = NULL
+    }
+};
+#endif
+DEF_VECTOR_FUNCS(lsp_list_ptr, lsp_list_ptr, NULL);
 
 static void *symb_get_func(const char *name)
 {
@@ -18,6 +29,108 @@ static void *symb_get_func(const char *name)
     }
     return  NULL;
 }
+
+
+// Create the abstract syntax tree from the provided
+// tokens. The AST is itself stored as a lsp_lst,
+// which means that the input (print 32 32 "123") will
+// itself print to (print 32 32 "123").
+
+// does not modify the contents in tokens,
+// except that tokens->error may change.
+// {SYMBOL PRINT, INT 24, FLOAT 32, STRING TEST} --> (print 24 32 TEST)
+// Creates the abstract syntax tree for a given object
+lsp_list *create_ast(vector_token *tokens)
+{
+    // The resulting ast is itelf stored in a
+    // (recursive) list.
+    lsp_list *ast = (lsp_list *) lsp_obj_new(OBJ_LIST);
+    assert(ast);
+
+    // Store a stack of lists. That way, T_LIST_END is
+    // reached we know that the list at the top of the stack
+    // has been closed, and it can be pushed to the list
+    // below it. When there is nothing more to parse
+    // the objects left in this stack is pushed to the
+    // resulting list 'lst'.
+    // NOTE allocated on the stack, but items are on the heap
+    //      this makes handling of recursive lists easier.
+    vector_lsp_list_ptr lst_stack;
+    assert(!vector_init_lsp_list_ptr(&lst_stack));
+
+    for (size_t i = 0; i < tokens->len; i++) {
+        const token t = vector_get_token(tokens, i);
+        assert(!tokens->error);
+
+        switch (t.type) {
+            case T_LIST_START: {
+                // Push a new list to the lst_stack
+                // NOTE allocated on the stack
+                lsp_list *nlst = (lsp_list *) lsp_obj_new(OBJ_LIST);
+                vector_push_lsp_list_ptr(&lst_stack, nlst);
+                fprintf(stderr, "AST: starting list!\n");
+                break;
+            }
+
+            case T_LIST_END: {
+                // Push the list at the top of the stack
+                // to the list of the one below it.
+                lsp_list *top = vector_pop_lsp_list_ptr(&lst_stack);
+                lsp_list *below = vector_peek_lsp_list_ptr(&lst_stack);
+                if (!below) {
+                    // This is the top.
+                    fprintf(stderr,
+                            "AST: reached end of list outside of list, "
+                            "pushing to ast directly");
+                    below = ast;
+                }
+                // Add the top list to the one below.
+                vector_push_lsp_obj_ptr(&below->vec, (lsp_obj *) top);
+                fprintf(stderr, "AST: pushing list!\n");
+                lsp_obj_print_repr((lsp_obj *) top);
+                break;
+            }
+
+            case T_SYMBOL: {
+                break;
+            }
+
+            case T_STRING: {
+                break;
+            }
+
+            case T_INT: {
+                break;
+            }
+
+            case T_FLOAT: {
+                break;
+            }
+
+            case T_BLANK:
+            case T_NEWLINE:
+            case T_CMT_START:
+            case T_CMT_CONTENT:
+            case T_CMT_END:
+            case T_UNKNOWN:
+                // skip
+                break;
+        }
+    }
+
+    // Copy elements from lst_stack to the ast.
+    for (size_t i = 0; i < lst_stack.len && !lst_stack.error; i++) {
+        lsp_list *lst = (vector_get_lsp_list_ptr(&lst_stack, i));
+        assert(lst);
+        vector_push_lsp_obj_ptr(&ast->vec, (lsp_obj *) lst);
+    }
+    // Destroy the lst_stack vector (not its contents)
+    vector_destroy_lsp_list_ptr(&lst_stack);
+
+    // TODO cleanup...
+    return ast;
+}
+
 
 
 vector_lsp_obj_ptr *exec_tokens_(vector_token *tokens)

@@ -73,6 +73,10 @@ typedef struct lsp_symbol lsp_symbol;
 int lsp_obj_init_w(lsp_obj *obj, lsp_obj_type type, void *data, size_t size);
 int lsp_obj_init(lsp_obj *obj, lsp_obj_type type);
 int lsp_obj_destroy(lsp_obj *obj);
+
+lsp_obj *lsp_obj_new_w(lsp_obj_type type, void *data, size_t size);
+lsp_obj *lsp_obj_new(lsp_obj_type type);
+
 int lsp_obj_print(lsp_obj *obj);
 int lsp_obj_print_repr(lsp_obj *obj);
 lsp_str *lsp_obj_repr(lsp_obj *obj);
@@ -82,5 +86,4 @@ int lsp_str_init_w(lsp_str *str, const void *data, size_t size);
 int lsp_str_init(lsp_str *str);
 int lsp_str_destroy(lsp_str *str);
 int lsp_str_cat_n(lsp_str *lstr, const char *str, size_t str_len);
-
 #endif // __TYPES_H_

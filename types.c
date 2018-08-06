@@ -33,7 +33,7 @@ int lsp_obj_init_w(lsp_obj *obj, lsp_obj_type type, void *data, size_t size)
 
         case OBJ_INT:
             obj->type = type;
-            obj->size = 0;
+            obj->size = 0; // not a pointer
             obj->integer = 0;
             break;
 
@@ -88,8 +88,20 @@ int lsp_obj_destroy(lsp_obj *obj)
             break;
 
         case OBJ_LIST: {
+            // The list can be recursive. Therefore
+            // it it required to destroy all
+            // items of the list
             // Destroy the vector.
             lsp_list *lst = (lsp_list *) obj;
+            while (lst->vec.len > 0 && !lst->vec.error) {
+                lsp_obj *obj = vector_pop_lsp_obj_ptr(&lst->vec);
+                if (!obj) {
+                    break;
+                }
+                // NOTE: Recursive call
+                assert(!lsp_obj_destroy(obj));
+                free(obj);
+            }
             assert(!vector_destroy_lsp_obj_ptr(&lst->vec));
             break;
         }
@@ -110,6 +122,46 @@ int lsp_obj_destroy(lsp_obj *obj)
         
     }
     return 0;
+}
+
+lsp_obj *lsp_obj_new_w(lsp_obj_type type, void *data, size_t size)
+{
+    size_t obj_size = 0;
+    switch (type) {
+        case OBJ_STRING:
+            obj_size = sizeof(lsp_str);
+            break;
+
+        case OBJ_INT:
+        case OBJ_GENERIC:
+        case OBJ_FLOAT:
+            obj_size = sizeof(lsp_obj);
+            break;
+
+        case OBJ_LIST:
+            obj_size = sizeof(lsp_list);
+            break;
+
+        case OBJ_SYMBOL:
+            obj_size = sizeof(lsp_symbol);
+            break;
+
+        default:
+            fprintf(stderr, "Runtime error: unable to create new type"
+                            ", unknown type: %u\n", type);
+            exit(1);
+            break;
+    }
+    assert(obj_size > 0);
+    lsp_obj *obj = xcalloc(1, obj_size);
+    assert(obj);
+    assert(!lsp_obj_init_w(obj, type, data, size));
+    return obj;
+}
+
+lsp_obj *lsp_obj_new(lsp_obj_type type)
+{
+    return lsp_obj_new_w(type, NULL, 0);
 }
 
 static int repr_(lsp_obj *obj, char **out, size_t *size, bool repr)
