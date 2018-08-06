@@ -45,9 +45,9 @@ lsp_obj *builtin_if(vector_lsp_obj_ptr *argv)
 
     lsp_obj *condition = vector_get_lsp_obj_ptr(argv, 1);
     if (lsp_obj_is_true(condition)) {
-        return vector_get_lsp_obj_ptr(argv, 2);
+        return lsp_obj_clone(vector_get_lsp_obj_ptr(argv, 2));
     } else if (argv->len == 4) {
-        return vector_get_lsp_obj_ptr(argv, 3);
+        return lsp_obj_clone(vector_get_lsp_obj_ptr(argv, 3));
     }
     return NULL;
 }

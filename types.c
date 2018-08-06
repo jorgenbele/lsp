@@ -55,6 +55,65 @@ bool lsp_obj_is_true(lsp_obj *obj)
     }
 }
 
+// TODO refactor
+lsp_obj *lsp_obj_clone(const lsp_obj *src)
+{
+    lsp_obj *robj = NULL;
+    switch (src->type) {
+        case OBJ_STRING: {
+            // NOTE size is actually the length of the string.
+            const lsp_str *str = (const lsp_str *) src;
+            robj = lsp_obj_new_w(str->type, str->ptr, str->len); // NOTE len
+            break;
+        }
+
+        case OBJ_INT: {
+            robj = lsp_obj_new_w(src->type, src->ptr, src->size);
+            robj->integer = src->integer;
+            break;
+        }
+
+        case OBJ_FLOAT: {
+            robj = lsp_obj_new_w(src->type, src->ptr, src->size);
+            robj->flt = src->flt;
+            break;
+        }
+
+        case OBJ_LIST: {
+            // NOTE not const since vector_* takes non-const.
+            lsp_list *src_lst = (lsp_list *) src;
+            robj = lsp_obj_new(src_lst->type);
+            lsp_list *lst = (lsp_list *) robj;
+
+            // recursively clone all objects
+            for (size_t i = 0; i < src_lst->vec.len; i++) {
+                const lsp_obj *src_o = vector_get_lsp_obj_ptr(&src_lst->vec, i);
+                assert(src_o);
+                lsp_obj *ret_o = lsp_obj_clone(src_o);
+                assert(ret_o);
+                assert(!vector_push_lsp_obj_ptr(&lst->vec, ret_o));
+            }
+            break;
+        }
+
+        case OBJ_SYMBOL: {
+            const lsp_symbol *src_symb = (const lsp_symbol *) src;
+            robj = lsp_obj_new(src_symb->type);
+            lsp_symbol *symb = (lsp_symbol *) robj;
+            assert(symb);
+            symb->symb_len = src_symb->symb_len;
+            symb->symb = xstrdupn(src_symb->symb, src_symb->symb_len);
+            assert(symb->symb);
+            break;
+        }
+
+        case OBJ_GENERIC:
+            robj = lsp_obj_new_w(src->type, src->ptr, src->size);
+            break;
+    }
+    return robj;
+}
+
 int lsp_obj_init_w(lsp_obj *obj, lsp_obj_type type, void *data, size_t size)
 {
     switch (type) {

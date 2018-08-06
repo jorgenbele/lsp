@@ -78,6 +78,7 @@ bool lsp_obj_is_true(lsp_obj *obj);
 
 lsp_obj *lsp_obj_new_w(lsp_obj_type type, void *data, size_t size);
 lsp_obj *lsp_obj_new(lsp_obj_type type);
+lsp_obj *lsp_obj_clone(const lsp_obj *src);
 
 int lsp_obj_print(lsp_obj *obj);
 int lsp_obj_print_repr(lsp_obj *obj);

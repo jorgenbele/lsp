@@ -93,6 +93,7 @@ lsp_list *create_ast(vector_token *tokens)
                 lsp_symbol *symb = (lsp_symbol *) lsp_obj_new(OBJ_SYMBOL);
                 assert(symb);
                 symb->symb = xstrdupn(t.str, t.len);
+                symb->symb_len = t.len;
                 PUSH_TOP_LIST_STACK_OR_AST(symb);
                 break;
             }
@@ -171,10 +172,13 @@ lsp_list *execute_ast(lsp_list *ast)
             case OBJ_INT:
             case OBJ_FLOAT:
             case OBJ_SYMBOL:
-            case OBJ_GENERIC:
+            case OBJ_GENERIC: {
                 // resolve to itslef
-                vector_push_lsp_obj_ptr(&rlst->vec, obj);
+                lsp_obj *clone = lsp_obj_clone(obj);
+                assert(clone);
+                vector_push_lsp_obj_ptr(&rlst->vec, clone);
                 break;
+            }
 
             case OBJ_LIST: {
                 // if the first element of the list is
@@ -207,7 +211,9 @@ lsp_list *execute_ast(lsp_list *ast)
                     // first element was not a symbol
                 }
                 // was not a function call, resolve to itself
-                vector_push_lsp_obj_ptr(&rlst->vec, obj);
+                lsp_obj *clone = lsp_obj_clone(obj);
+                assert(clone);
+                vector_push_lsp_obj_ptr(&rlst->vec, clone);
                 break;
             }
         }
