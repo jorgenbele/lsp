@@ -52,15 +52,15 @@ lsp_list *create_ast(vector_token *tokens)
     do {                                                            \
         lsp_list *below = vector_peek_lsp_list_ptr(&lst_stack);     \
         if (!below) {                                               \
-            fprintf(stderr,                                         \
-                    "AST: reached end of list outside of list, "    \
-                    "pushing to ast directly");                     \
             below = ast;                                            \
         }                                                           \
         vector_push_lsp_obj_ptr(&below->vec, (lsp_obj *) ptr);      \
-        fprintf(stderr, "AST: pushing list!\n");                    \
-        lsp_obj_print_repr((lsp_obj *) ptr);                        \
     } while (0);
+            //fprintf(stderr,
+            //        "AST: reached end of list outside of list, "
+            //        "pushing to ast directly");
+        //fprintf(stderr, "AST: pushing list!\n");
+        //lsp_obj_print_repr((lsp_obj *) ptr);
 
     for (size_t i = 0; i < tokens->len; i++) {
         const token t = vector_get_token(tokens, i);
@@ -72,7 +72,7 @@ lsp_list *create_ast(vector_token *tokens)
                 // NOTE allocated on the stack
                 lsp_list *nlst = (lsp_list *) lsp_obj_new(OBJ_LIST);
                 vector_push_lsp_list_ptr(&lst_stack, nlst);
-                fprintf(stderr, "AST: starting list!\n");
+                //fprintf(stderr, "AST: starting list!\n");
                 break;
             }
 
@@ -83,8 +83,8 @@ lsp_list *create_ast(vector_token *tokens)
                 // empty as long as all lists are terminated.
                 lsp_list *top = vector_pop_lsp_list_ptr(&lst_stack);
                 PUSH_TOP_LIST_STACK_OR_AST(top);
-                fprintf(stderr, "AST: pushing list!\n");
-                lsp_obj_print_repr((lsp_obj *) top);
+                //fprintf(stderr, "AST: pushing list!\n");
+                //lsp_obj_print_repr((lsp_obj *) top);
                 break;
             }
 
@@ -131,6 +131,7 @@ lsp_list *create_ast(vector_token *tokens)
             case T_CMT_CONTENT:
             case T_CMT_END:
             case T_UNKNOWN:
+            case T_QUOTE:
                 // skip
                 break;
         }
@@ -206,11 +207,10 @@ lsp_obj *evaluate_list(lsp_list *lst)
     lsp_obj *front = vector_get_lsp_obj_ptr(&lst->vec, 0);
     assert(front);
 
-    // Evaluate all lists in the rest of the list
+    // evaluate all lists in the rest of the list
     // before passing them to the function.
     lsp_list evl_lst;
     assert(!lsp_obj_init((lsp_obj *) &evl_lst, OBJ_LIST));
-    //vector_init_lsp_obj_ptr(&evl_lst);
 
     for (size_t i = 0; i < lst->vec.len; i++) {
         lsp_obj *o = vector_get_lsp_obj_ptr(&lst->vec, i);
@@ -236,37 +236,10 @@ lsp_obj *evaluate_list(lsp_list *lst)
         lsp_symbol *symb = (lsp_symbol *) front;
         BUILTIN_FUNC_PTR(fptr) = builtin_get_func(symb->symb);
         if (fptr) {
-            // executed
-            fprintf(stderr, "Runtime log: executing %s\n", symb->symb);
-            lsp_obj_print_repr((lsp_obj *) &evl_lst);
-            lsp_obj *robj = fptr(&evl_lst.vec);
-            fprintf(stderr, "Runtime log: %s evaluated to:", symb->symb);
-            if (robj) {
-                lsp_obj_print_repr(robj);
-
-                if (robj->type == OBJ_LIST) {
-                    fprintf(stderr, "Runtime log: recursing:");
-                    lsp_obj_print_repr(robj);
-                    // (try to) execute the inner list
-                    lsp_list *rec_ret = execute_ast((lsp_list *) robj);
-                    ret = (lsp_obj *) rec_ret;
-
-                    // destroy 'robj'
-                    lsp_obj_destroy(robj);
-                    free(robj);
-                } else {
-                    ret = robj;
-                }
-            } else {
-                fprintf(stderr, "NULL\n");
-                ret = NULL;
-            }
-
+            ret = fptr(&evl_lst.vec);
         } else {
-            fprintf(stderr, "Runtime error: unable to "
-                    "resolve symbol: %s\n",
+            fprintf(stderr, "Runtime error: unable to resolve symbol: %s\n",
                     symb->symb);
-            exit(1);
             ret = NULL; //...
         }
     } else {

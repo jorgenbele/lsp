@@ -20,6 +20,7 @@ static void test_vector_init_w_int(void **state) {
     assert_int_equal(vector_get_int(&ints, 0), 1);
     assert_int_equal(vector_get_int(&ints, 1), 2);
     assert_int_equal(vector_peek_int(&ints), 3);
+    assert_false(vector_destroy_int(&ints));
 }
 
 // pushing to vector
@@ -102,6 +103,7 @@ static void test_vector_init_w_char_ptr(void **state) {
     assert_string_equal(vector_get_char_ptr(&char_ptrs, 1), strings[1]);
     assert_string_equal(vector_get_char_ptr(&char_ptrs, 2), strings[2]);
     assert_string_equal(vector_peek_char_ptr(&char_ptrs), strings[3]);
+    assert_false(vector_destroy_char_ptr(&char_ptrs));
 }
 
 // pushing to vector

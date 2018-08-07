@@ -2,7 +2,9 @@ PKG_LIBS = cmocka
 LIBS := $(LIBS) `pkg-config --libs $(PKG_LIBS)`
 CFLAGS = -g
 
-.PHONY: clean install vector_test token_test runall
+.PHONY: all clean install vector_test token_test runall
+
+all: vector_test token_test interp_test
 
 vector_test:
 	$(CC) $(CFLAGS) -DMOCKA_TEST -o vector_test vector_test.c $(LIBS)

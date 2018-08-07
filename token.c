@@ -23,7 +23,8 @@ const char *token_type_str[] = {
     "T_LIST_START", "T_LIST_END",
     "T_BLANK", "T_NEWLINE",
     "T_SYMBOL", "T_STRING", "T_INT",
-    "T_FLOAT"
+    "T_FLOAT",
+    "T_QUOTE",
 };
 
 //static const struct token default_token = {T_UNKNOWN, 0};
@@ -266,6 +267,62 @@ static const char *parse_atom(const char *str, vector_token *tokens)
     return parse_symbol(ptr, tokens);
 }
 
+int tokenize_str__(const char *str, vector_token *tokens, const char **last)
+{
+    const char *ptr = str;
+    int ret = 0;
+    while (*ptr) {
+        // List
+        if (*ptr == LIST_START_CHR) {
+            vector_push_token(tokens, (token)
+                              {T_LIST_START, 1, .is_str=false, .chr=LIST_START_CHR});
+            ptr++;
+            //fprintf(stderr, "LIST_START_CHR rest:`%s`\n", ptr);
+            ret = tokenize_str__(ptr, tokens, last);
+            break;
+        } else if (*ptr == LIST_END_CHR) {
+            vector_push_token(tokens, (token)
+                              {T_LIST_END, 1, .is_str=false, .chr=LIST_END_CHR});
+            ptr++;
+            //fprintf(stderr, "LIST_END_CHR rest:`%s`\n", ptr);
+            *last = ptr;
+            break;
+        // ';' Comments ignore the rest of the line.
+        } else if (*ptr == CMT_START_CHR) {
+            ptr = parse_comment(ptr, tokens);
+            //fprintf(stderr, "CMD_START_CHR rest:`%s`\n", ptr);
+            *last = ptr;
+            break;
+        } else if (*ptr == NEWLINE_CHR) {
+            vector_push_token(tokens, (token)
+                              {T_NEWLINE, 1, .is_str=false, .chr=NEWLINE_CHR});
+            ptr++;
+            //fprintf(stderr, "NEWLINE_CHR rest:`%s`\n", ptr);
+            *last = ptr;
+            break;
+        // Blanks
+        } else if (isblank(*ptr)) {
+            ptr = parse_blank(ptr, tokens);
+            //fprintf(stderr, "BLANK_CHR rest:`%s`\n", ptr);
+            *last = ptr;
+        } else {
+            ptr = parse_atom(ptr, tokens);
+            if (!ptr)  {
+                parse_error("Failed to parse atom.\n");
+                break;
+            }
+            //fprintf(stderr, "ATOM rest:`%s`\n", ptr);
+            *last = ptr;
+        }
+    }
+
+    if (!ptr && !ret) {
+        ret = 1;
+    }
+
+    return ret;
+}
+
 static const char *tokenize_str_(const char *str, vector_token *tokens)
 {
     const char *ptr = str;
@@ -317,7 +374,7 @@ int tokenize_str(const char *str, vector_token *tokens)
     return tokenize_str_(str, tokens) == NULL;
 }
 
-void token_free(token *tok)
+void token_destroy(token *tok)
 {
     if (tok->is_str) {
         free(tok->str);
@@ -333,6 +390,7 @@ void token_print(const token *tok)
         case T_CMT_START: case T_CMT_END:
         case T_UNKNOWN:
         case T_NEWLINE:
+        case T_QUOTE:
             str[0] = tok->chr;
             break;
 

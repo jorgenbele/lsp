@@ -1,80 +1,200 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <stdint.h>
 
 #include "vector.h"
 #include "interp.h"
 #include "token.h"
+#include "utils.h"
 
-int main(int argc, const char *argv[])
+DEF_VECTOR(charbuf, char, 0);
+
+// reads until the count of START_LIST tokens == the count of END_LIST tokens
+// or, if count START_LIST tokens == 0, then the first atom.
+static int repl_read_next(FILE *fp, char **buf, size_t *bsize,
+                          vector_token *tokens, bool interactive)
+{
+    // TODO: simplify this function
+    assert(fp);
+
+    size_t last_i = 0;
+    ssize_t line_len = 0;
+    int ret = 0;
+    size_t lists = 0;
+    size_t tokens_start = 0;
+
+    bool done = false;
+
+    if (interactive) {
+        fprintf(stdout, "REPL: ");
+    }
+    while (!done) {
+        if (last_i >= line_len) {
+            if (lists > 0 && interactive) {
+                fprintf(stdout, "> ");
+            }
+            line_len = getline(buf, bsize, fp);
+            if (line_len < 0) {
+                done = true;
+                ret = 1;
+                break;
+            }
+            last_i = 0;
+            //fprintf(stderr, "GETLINE: `%s`\n", *buf);
+        }
+
+        //fprintf(stderr, "BUF: `%s`\n", *buf);
+        // update the last pointer using the saved offset
+        const char *start = (*buf) + last_i;
+        const char *last = start;
+
+        // try tokenize_str__ with the tokens
+        int r = tokenize_str__(start, tokens, &last);
+        if (r) {
+            done = true;
+            break;
+        }
+        //if (!r) {
+        //    done = true;
+        //    ret = r;
+        //    break;
+        //}
+
+        // since tokenize_str__ takes last as a pointer, and
+        // the pointer may become invalidated on reallocation
+        // store the index offset.
+        last_i = last - *buf;
+        //fprintf(stderr, "tokens_start: %lu, lists: %lu, r: %d, last_i: %lu\n", tokens_start, lists, r, last_i);
+
+        //fprintf(stderr, "TOKENS: ");
+        for (size_t i = tokens_start; i < tokens->len; i++) {
+            token token = vector_get_token(tokens, i);
+            if (token.type == T_LIST_START) {
+                lists++;
+            } else if (token.type == T_LIST_END) {
+                lists--;
+            }
+            //token_print(&token);
+        }
+        tokens_start = tokens->len;
+
+        if (lists == 0) {
+            break;
+        }
+    }
+    return ret;
+}
+
+static void create_and_execute_ast(vector_token *tokens)
+{
+    // create ast
+    lsp_list *ast = create_ast(tokens);
+    assert(ast);
+
+    // execute
+    lsp_list *rlst = execute_ast(ast);
+    assert(rlst);
+    for (size_t i = 0; i < rlst->vec.len; i++) {
+        lsp_obj *obj = vector_get_lsp_obj_ptr(&rlst->vec, i);
+        if (obj) {
+            lsp_obj_print_repr(obj);
+        } else {
+            printf("#<generic %p>\n", obj);
+        }
+    }
+
+    lsp_obj_destroy((lsp_obj *) rlst);
+    free(rlst);
+    lsp_obj_destroy((lsp_obj *) ast);
+    free(ast);
+}
+
+static int repl_start()
 {
     vector_token tokens;
     assert(!vector_init_token(&tokens));
 
-    //assert(!tokenize_str("( ;; this is a test comment test  \n )", &tokens));
-    //assert(!tokenize_str("\"test string with escaped \\\\ escapes \\\"\"", &tokens));
-    //assert(!tokenize_str("\"test string with escapes \\\"\"", &tokens));
-    //assert(!tokenize_str("\"testing \\\" test\"  ", &tokens));
-    //assert(!tokenize_str("(+ 123)", &tokens));
-    //assert(!tokenize_str("(\"test\")", &tokens));
-
     char *s = NULL;
     size_t ss = 0;
-    while (getline(&s, &ss, stdin) > 0) {
-        assert(!tokenize_str(s, &tokens));
+
+    while (!repl_read_next(stdin, &s, &ss, &tokens, true)) {
+        create_and_execute_ast(&tokens);
+
         for (size_t i = 0; i < tokens.len; i++) {
             token token = vector_get_token(&tokens, i);
-            token_print(&token);
+            //token_print(&token);
+            token_destroy(&token);
         }
-
-        // create ast
-        lsp_list *ast = create_ast(&tokens);
-
-        // reset the vector
-        while (tokens.len > 0 && !tokens.error) {
-            token token = vector_pop_token(&tokens);
-            token_free(&token);
-        }
-
-        assert(ast);
-
-        fprintf(stdout, "\n\n===== AST =====\n");
-        for (size_t i = 0; i < ast->vec.len; i++) {
-            lsp_obj *obj = vector_get_lsp_obj_ptr(&ast->vec, i);
-            assert(obj);
-            lsp_obj_print_repr(obj);
-        }
-        fprintf(stdout, "===============\n");
-
-        // execute
-        lsp_list *rlst = execute_ast(ast);
-        assert(rlst);
-        fprintf(stdout, "\n\n===== RLST =====\n");
-        for (size_t i = 0; i < rlst->vec.len; i++) {
-            lsp_obj *obj = vector_get_lsp_obj_ptr(&rlst->vec, i);
-            if (obj) {
-                //assert(obj);
-                printf("repr: ");
-                lsp_obj_print_repr(obj);
-            } else {
-                printf("generic#NULL\n");
-            }
-        }
-        fprintf(stdout, "================\n");
-
-        lsp_obj_destroy((lsp_obj *) rlst);
-        free(rlst);
-
-        lsp_obj_destroy((lsp_obj *) ast);
-        free(ast);
+        tokens.len = 0;
     }
 
+    // cleanup
     free(s);
 
-    while (tokens.len > 0 && !tokens.error) {
+    // make sure all tokens are destroyed
+    while (tokens.len > 0) {
         token token = vector_pop_token(&tokens);
-        token_free(&token);
+        if (tokens.error) {
+            break;
+        }
+        token_destroy(&token);
     }
     assert(!vector_destroy_token(&tokens));
     return 0;
+}
+
+static int execute_file(FILE *fp)
+{
+    vector_token tokens;
+    assert(!vector_init_token(&tokens));
+
+    char *s = NULL;
+    size_t ss = 0;
+
+    while (!repl_read_next(fp, &s, &ss, &tokens, false)) {
+        create_and_execute_ast(&tokens);
+
+        for (size_t i = 0; i < tokens.len; i++) {
+            token token = vector_get_token(&tokens, i);
+            //token_print(&token);
+            token_destroy(&token);
+        }
+        tokens.len = 0;
+    }
+
+    // cleanup
+    free(s);
+
+    // make sure all tokens are destroyed
+    while (tokens.len > 0) {
+        token token = vector_pop_token(&tokens);
+        if (tokens.error) {
+            break;
+        }
+        token_destroy(&token);
+    }
+    assert(!vector_destroy_token(&tokens));
+    return 0;
+}
+
+int main(int argc, const char *argv[])
+{
+    if (argc < 2) {
+        return repl_start();
+    } else {
+        for (int i = 1; i < argc; i++) {
+            //fprintf(stderr, "Executing: %s\n", argv[i]);
+            FILE *fp = fopen(argv[i], "r");
+            if (!fp) {
+                perror("fopen");
+                exit(1);
+            }
+            int ret = execute_file(fp);
+            fclose(fp);
+            if (ret) {
+                return ret;
+            }
+        }
+    }
 }

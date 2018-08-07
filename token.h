@@ -24,7 +24,8 @@ enum token_type {
     T_LIST_START, T_LIST_END,
     T_BLANK, T_NEWLINE,
     T_SYMBOL, T_STRING, T_INT,
-    T_FLOAT
+    T_FLOAT,
+    T_QUOTE
 };
 
 extern const char *token_type_str[];
@@ -64,9 +65,11 @@ typedef struct token token;
 
 DEF_VECTOR_HEADER(token, struct token);
 
+int tokenize_str__(const char *str, vector_token *tokens, const char **last);
+// DEPRECATED
 int tokenize_str(const char *str, vector_token *tokens);
 void token_print(const token *tok);
-void token_free(token *tok);
+void token_destroy(token *tok);
 
 #ifdef MOCKA_TEST
 ssize_t sstr_len(const char *str);

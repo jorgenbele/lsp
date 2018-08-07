@@ -61,6 +61,10 @@ static void assert_tokenize(const char *str, token expected[], size_t len)
         assert_false(tokens.error);
         assert_token_equal(&tok, &expected[i]);
     }
+    while (tokens.len > 0 && !tokens.error) {
+        token t = vector_pop_token(&tokens);
+        token_destroy(&t);
+    }
     assert_false(vector_destroy_token(&tokens));
 }
 
