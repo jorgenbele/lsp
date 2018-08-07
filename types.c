@@ -5,6 +5,7 @@
 #include "types.h"
 #include "utils.h"
 #include "builtins.h" // circular dependency ???
+#include "interp.h"
 
 const char *obj_type_str[] = {
     "OBJ_GENERIC", "OBJ_LIST", "OBJ_INT", "OBJ_FLOAT", "OBJ_STRING", "OBJ_SYMBOL"
@@ -257,6 +258,14 @@ lsp_obj *lsp_obj_new(lsp_obj_type type)
     return lsp_obj_new_w(type, NULL, 0);
 }
 
+lsp_obj *lsp_obj_eval(lsp_obj *obj)
+{
+    if (obj->type == OBJ_LIST) {
+        return evaluate_list((lsp_list *) obj);
+    }
+    return lsp_obj_clone(obj);
+}
+
 static int repr_(lsp_obj *obj, char **out, size_t *size, bool repr)
 {
     if (repr) {
@@ -412,6 +421,56 @@ int lsp_str_cat_n(lsp_str *lstr, const char *str, size_t str_len)
     strncat(lstr->ptr, str, str_len);
     lstr->len = total_len;
     return 0;
+}
+
+/*
+ * Lists
+ */
+
+size_t lsp_list_len(lsp_list *lst)
+{
+    return lst->vec.len;
+}
+
+int lsp_list_error(lsp_list *lst)
+{
+    return lst->vec.error;
+}
+
+int lsp_list_push(lsp_list *lst, lsp_obj *obj)
+{
+    return vector_push_lsp_obj_ptr(&lst->vec, obj);
+}
+
+lsp_obj *lsp_list_get(lsp_list *lst, size_t i)
+{
+    return vector_get_lsp_obj_ptr(&lst->vec, i);
+}
+
+lsp_obj *lsp_list_get_eval(lsp_list *lst, size_t i)
+{
+    lsp_obj *obj = lsp_list_get(lst, i);
+    if (obj) {
+        return lsp_obj_eval(obj);
+    }
+    return NULL;
+}
+
+lsp_list *lsp_list_after(lsp_list *lst, size_t i)
+{
+    lsp_list *after = (lsp_list *) lsp_obj_new(OBJ_LIST);
+    assert(after);
+
+    size_t lst_len = lsp_list_len(lst);
+    for (size_t k = i; k < lst_len; k++) {
+        const lsp_obj *obj = lsp_list_get(lst, k);
+        assert(obj);
+        lsp_obj *clone = lsp_obj_clone(obj);
+        assert(clone);
+        lsp_list_push(after, clone);
+    }
+
+    return after;
 }
 
 /*

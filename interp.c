@@ -207,30 +207,30 @@ lsp_obj *evaluate_list(lsp_list *lst)
     lsp_obj *front = vector_get_lsp_obj_ptr(&lst->vec, 0);
     assert(front);
 
-    // evaluate all lists in the rest of the list
-    // before passing them to the function.
-    lsp_list evl_lst;
-    assert(!lsp_obj_init((lsp_obj *) &evl_lst, OBJ_LIST));
+    //// evaluate all lists in the rest of the list
+    //// before passing them to the function.
+    //lsp_list evl_lst;
+    //assert(!lsp_obj_init((lsp_obj *) &evl_lst, OBJ_LIST));
 
-    for (size_t i = 0; i < lst->vec.len; i++) {
-        lsp_obj *o = vector_get_lsp_obj_ptr(&lst->vec, i);
-        assert(o);
+    //for (size_t i = 0; i < lst->vec.len; i++) {
+    //    lsp_obj *o = vector_get_lsp_obj_ptr(&lst->vec, i);
+    //    assert(o);
 
-        if (o->type == OBJ_LIST) {
-            //fprintf(stdout, "Evaluating: ");
-            //lsp_obj_print_repr(o);
-            lsp_obj *evaled_o = evaluate_list((lsp_list *) o);
-            // might evaluate to NULL
-            if (evaled_o) {
-                //assert(evaled_o);
-                vector_push_lsp_obj_ptr(&evl_lst.vec, evaled_o);
-            }
-        } else {
-            lsp_obj *cloned = lsp_obj_clone((lsp_obj *) o);
-            assert(cloned);
-            vector_push_lsp_obj_ptr(&evl_lst.vec, cloned);
-        }
-    }
+    //    if (o->type == OBJ_LIST) {
+    //        //fprintf(stdout, "Evaluating: ");
+    //        //lsp_obj_print_repr(o);
+    //        lsp_obj *evaled_o = evaluate_list((lsp_list *) o);
+    //        // might evaluate to NULL
+    //        if (evaled_o) {
+    //            //assert(evaled_o);
+    //            vector_push_lsp_obj_ptr(&evl_lst.vec, evaled_o);
+    //        }
+    //    } else {
+    //        lsp_obj *cloned = lsp_obj_clone((lsp_obj *) o);
+    //        assert(cloned);
+    //        vector_push_lsp_obj_ptr(&evl_lst.vec, cloned);
+    //    }
+    //}
 
     lsp_obj *ret = NULL;
 
@@ -241,7 +241,8 @@ lsp_obj *evaluate_list(lsp_list *lst)
         lsp_symbol *symb = (lsp_symbol *) front;
         BUILTIN_FUNC_PTR(fptr) = builtin_get_func(symb->symb);
         if (fptr) {
-            ret = fptr(&evl_lst.vec);
+            ret = fptr(lst);
+            //ret = fptr(&evl_lst);
         } else {
             fprintf(stderr, "Runtime error: unable to resolve symbol: %s\n",
                     symb->symb);
@@ -253,7 +254,7 @@ lsp_obj *evaluate_list(lsp_list *lst)
     }
 
     // destroy the evaluated list
-    assert(!lsp_obj_destroy((lsp_obj *) &evl_lst));
+    //assert(!lsp_obj_destroy((lsp_obj *) &evl_lst));
 
     return ret;
 }

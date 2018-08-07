@@ -89,4 +89,14 @@ int lsp_str_init_w(lsp_str *str, const void *data, size_t size);
 int lsp_str_init(lsp_str *str);
 int lsp_str_destroy(lsp_str *str);
 int lsp_str_cat_n(lsp_str *lstr, const char *str, size_t str_len);
+
+lsp_obj *lsp_obj_eval(lsp_obj *obj);
+
+int lsp_list_push(lsp_list *lst, lsp_obj *obj);
+size_t lsp_list_len(lsp_list *lst);
+int lsp_list_error(lsp_list *lst);
+lsp_obj *lsp_list_get(lsp_list *lst, size_t i);
+lsp_obj *lsp_list_get_eval(lsp_list *lst, size_t i);
+lsp_list *lsp_list_after(lsp_list *lst, size_t i);
+
 #endif // __TYPES_H_

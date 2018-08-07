@@ -5,7 +5,7 @@
 
 #include "types.h"
 
-#define BUILTIN_FUNC_PTR(name) lsp_obj_ptr (*name)(vector_lsp_obj_ptr *argv)
+#define BUILTIN_FUNC_PTR(name) lsp_obj_ptr (*name)(lsp_list *)
 
 struct builtin {
     const char *symbol;
@@ -17,18 +17,17 @@ extern const builtin builtins[];
 
 void *builtin_get_func(const char *name);
 
-//lsp_obj *builtin_repr(vector_lsp_obj_ptr *argv);
-lsp_obj *builtin_print(vector_lsp_obj_ptr *argv);
-lsp_obj *builtin_println(vector_lsp_obj_ptr *argv);
+lsp_obj *builtin_print(lsp_list *argl);
+lsp_obj *builtin_println(lsp_list *argl);
 
-lsp_obj *builtin_number_sum(vector_lsp_obj_ptr *argv);
-lsp_obj *builtin_number_minus(vector_lsp_obj_ptr *argv);
-lsp_obj *builtin_number_mult(vector_lsp_obj_ptr *argv);
+lsp_obj *builtin_number_sum(lsp_list *argl);
+lsp_obj *builtin_number_minus(lsp_list *argl);
+lsp_obj *builtin_number_mult(lsp_list *argl);
 
-lsp_obj *builtin_if(vector_lsp_obj_ptr *argv);
-lsp_obj *builtin_repr(vector_lsp_obj_ptr *argv);
-lsp_obj *builtin_list(vector_lsp_obj_ptr *argv);
-lsp_obj *builtin_eval(vector_lsp_obj_ptr *argv);
-lsp_obj *builtin_repeat(vector_lsp_obj_ptr *argv);
+lsp_obj *builtin_if(lsp_list *argl);
+lsp_obj *builtin_quote(lsp_list *argl);
+lsp_obj *builtin_repr(lsp_list *argl);
+lsp_obj *builtin_eval(lsp_list *argl);
+lsp_obj *builtin_repeat(lsp_list *argl);
 
 #endif // __BUILTINS_H_
