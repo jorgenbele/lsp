@@ -217,9 +217,14 @@ lsp_obj *evaluate_list(lsp_list *lst)
         assert(o);
 
         if (o->type == OBJ_LIST) {
+            //fprintf(stdout, "Evaluating: ");
+            //lsp_obj_print_repr(o);
             lsp_obj *evaled_o = evaluate_list((lsp_list *) o);
-            assert(evaled_o);
-            vector_push_lsp_obj_ptr(&evl_lst.vec, evaled_o);
+            // might evaluate to NULL
+            if (evaled_o) {
+                //assert(evaled_o);
+                vector_push_lsp_obj_ptr(&evl_lst.vec, evaled_o);
+            }
         } else {
             lsp_obj *cloned = lsp_obj_clone((lsp_obj *) o);
             assert(cloned);

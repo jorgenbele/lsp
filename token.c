@@ -144,7 +144,7 @@ static const char *parse_string(const char *str, vector_token *tokens)
 
     ssize_t slen = sstr_len(str);
     if (slen < 0) {
-        parse_error("Attempting to parse unterminated string: `%s``\n", str);
+        parse_error("Attempting to parse unterminated, empty string\n");
         return NULL;
     }
     size_t len = (size_t) slen;
@@ -168,8 +168,8 @@ static const char *parse_string(const char *str, vector_token *tokens)
         }
         ptr++;
     }
+    *sptr = '\0';
 
-    *sptr++ = '\0';
     vector_push_token(tokens, (token)
                       {T_STRING, .len=len, .is_str=true, .str=s});
 
@@ -274,7 +274,7 @@ static const char *parse_atom(const char *str, vector_token *tokens)
 int tokenize_str_r(const char *str, vector_token *tokens, const char **last)
 {
     const char *ptr = str;
-    int ret = 0;
+    int ret = TOKENIZE_STR_OK;
     while (*ptr) {
         // List
         if (*ptr == LIST_START_CHR) {
@@ -313,6 +313,7 @@ int tokenize_str_r(const char *str, vector_token *tokens, const char **last)
             ptr = parse_atom(ptr, tokens);
             if (!ptr)  {
                 parse_error("Failed to parse atom.\n");
+                ret = TOKENIZE_STR_ERR;
                 break;
             }
             //fprintf(stderr, "ATOM rest:`%s`\n", ptr);
@@ -321,7 +322,9 @@ int tokenize_str_r(const char *str, vector_token *tokens, const char **last)
     }
 
     if (!ptr && !ret) {
-        ret = 1;
+        ret = TOKENIZE_STR_DONE;
+    } else if (!*ptr) {
+        ret = TOKENIZE_STR_ERR;
     }
 
     return ret;
@@ -338,7 +341,7 @@ int tokenize_str(const char *str, vector_token *tokens)
         }
         const char *start = str + last_i;
         const char *last = start;
-        if (tokenize_str_r(start, tokens, &last)) {
+        if (tokenize_str_r(start, tokens, &last) == 1) {
             break;
         }
         last_i = last - str;

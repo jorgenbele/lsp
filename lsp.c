@@ -8,8 +8,6 @@
 #include "token.h"
 #include "utils.h"
 
-DEF_VECTOR(charbuf, char, 0);
-
 // reads until the count of START_LIST tokens == the count of END_LIST tokens
 // or, if count START_LIST tokens == 0, then the first atom.
 static int repl_read_next(FILE *fp, char **buf, size_t *bsize,
@@ -51,7 +49,7 @@ static int repl_read_next(FILE *fp, char **buf, size_t *bsize,
 
         // try tokenize_str__ with the tokens
         int r = tokenize_str_r(start, tokens, &last);
-        if (r) {
+        if (r == TOKENIZE_STR_DONE) {
             done = true;
             break;
         }
@@ -86,7 +84,7 @@ static int repl_read_next(FILE *fp, char **buf, size_t *bsize,
     return ret;
 }
 
-static void create_and_execute_ast(vector_token *tokens)
+static void create_and_execute_ast(vector_token *tokens, bool print_rlist)
 {
     // create ast
     lsp_list *ast = create_ast(tokens);
@@ -95,12 +93,14 @@ static void create_and_execute_ast(vector_token *tokens)
     // execute
     lsp_list *rlst = execute_ast(ast);
     assert(rlst);
-    for (size_t i = 0; i < rlst->vec.len; i++) {
-        lsp_obj *obj = vector_get_lsp_obj_ptr(&rlst->vec, i);
-        if (obj) {
-            lsp_obj_print_repr(obj);
-        } else {
-            printf("#<generic %p>\n", obj);
+    if (print_rlist) {
+        for (size_t i = 0; i < rlst->vec.len; i++) {
+            lsp_obj *obj = vector_get_lsp_obj_ptr(&rlst->vec, i);
+            if (obj) {
+                lsp_obj_print_repr(obj);
+            } else {
+                printf("#<generic %p>\n", obj);
+            }
         }
     }
 
@@ -120,7 +120,7 @@ static int repl_start(bool print_tokens)
 
     while (!repl_read_next(stdin, &s, &ss, &tokens, true)) {
         if (!print_tokens) {
-            create_and_execute_ast(&tokens);
+            create_and_execute_ast(&tokens, true);
         }
 
         for (size_t i = 0; i < tokens.len; i++) {
@@ -157,7 +157,7 @@ static int execute_file(FILE *fp)
     size_t ss = 0;
 
     while (!repl_read_next(fp, &s, &ss, &tokens, false)) {
-        create_and_execute_ast(&tokens);
+        create_and_execute_ast(&tokens, false);
 
         for (size_t i = 0; i < tokens.len; i++) {
             token token = vector_get_token(&tokens, i);

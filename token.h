@@ -65,6 +65,8 @@ typedef struct token token;
 
 DEF_VECTOR_HEADER(token, struct token);
 
+enum {TOKENIZE_STR_ERR=-1, TOKENIZE_STR_OK=0, TOKENIZE_STR_DONE=1};
+
 int tokenize_str_r(const char *str, vector_token *tokens, const char **last);
 int tokenize_str(const char *str, vector_token *tokens);
 void token_destroy(token *tok);

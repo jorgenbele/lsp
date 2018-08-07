@@ -19,13 +19,16 @@ void *builtin_get_func(const char *name);
 
 //lsp_obj *builtin_repr(vector_lsp_obj_ptr *argv);
 lsp_obj *builtin_print(vector_lsp_obj_ptr *argv);
-lsp_obj *builtin_number_mult(vector_lsp_obj_ptr *argv);
+lsp_obj *builtin_println(vector_lsp_obj_ptr *argv);
+
 lsp_obj *builtin_number_sum(vector_lsp_obj_ptr *argv);
 lsp_obj *builtin_number_minus(vector_lsp_obj_ptr *argv);
-lsp_obj *builtin_number_add(vector_lsp_obj_ptr *argv);
+lsp_obj *builtin_number_mult(vector_lsp_obj_ptr *argv);
+
 lsp_obj *builtin_if(vector_lsp_obj_ptr *argv);
 lsp_obj *builtin_repr(vector_lsp_obj_ptr *argv);
 lsp_obj *builtin_list(vector_lsp_obj_ptr *argv);
 lsp_obj *builtin_eval(vector_lsp_obj_ptr *argv);
+lsp_obj *builtin_repeat(vector_lsp_obj_ptr *argv);
 
 #endif // __BUILTINS_H_
