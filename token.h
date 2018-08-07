@@ -65,11 +65,10 @@ typedef struct token token;
 
 DEF_VECTOR_HEADER(token, struct token);
 
-int tokenize_str__(const char *str, vector_token *tokens, const char **last);
-// DEPRECATED
+int tokenize_str_r(const char *str, vector_token *tokens, const char **last);
 int tokenize_str(const char *str, vector_token *tokens);
-void token_print(const token *tok);
 void token_destroy(token *tok);
+void token_print(const token *tok);
 
 #ifdef MOCKA_TEST
 ssize_t sstr_len(const char *str);

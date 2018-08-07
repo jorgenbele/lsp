@@ -50,7 +50,7 @@ static int repl_read_next(FILE *fp, char **buf, size_t *bsize,
         const char *last = start;
 
         // try tokenize_str__ with the tokens
-        int r = tokenize_str__(start, tokens, &last);
+        int r = tokenize_str_r(start, tokens, &last);
         if (r) {
             done = true;
             break;
@@ -110,7 +110,7 @@ static void create_and_execute_ast(vector_token *tokens)
     free(ast);
 }
 
-static int repl_start()
+static int repl_start(bool print_tokens)
 {
     vector_token tokens;
     assert(!vector_init_token(&tokens));
@@ -119,11 +119,15 @@ static int repl_start()
     size_t ss = 0;
 
     while (!repl_read_next(stdin, &s, &ss, &tokens, true)) {
-        create_and_execute_ast(&tokens);
+        if (!print_tokens) {
+            create_and_execute_ast(&tokens);
+        }
 
         for (size_t i = 0; i < tokens.len; i++) {
             token token = vector_get_token(&tokens, i);
-            //token_print(&token);
+            if (print_tokens) {
+                token_print(&token);
+            }
             token_destroy(&token);
         }
         tokens.len = 0;
@@ -180,8 +184,17 @@ static int execute_file(FILE *fp)
 
 int main(int argc, const char *argv[])
 {
+    bool use_repl = false;
+    bool print_tokens = false;
     if (argc < 2) {
-        return repl_start();
+        use_repl = true;
+    } else if (argv[1][0] == '-' && argv[1][1] == 't') {
+        use_repl = true;
+        print_tokens = true;
+    }
+
+    if (use_repl) {
+        return repl_start(print_tokens);
     } else {
         for (int i = 1; i < argc; i++) {
             //fprintf(stderr, "Executing: %s\n", argv[i]);

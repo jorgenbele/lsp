@@ -138,6 +138,7 @@ static const char *parse_string(const char *str, vector_token *tokens)
         // Was not a valid string. Was
         // just a starting quote but
         // nothing else.
+        parse_error("Attempting to parse unterminated and empty string: `%s``\n", str);
         return NULL;
     }
 
@@ -267,7 +268,10 @@ static const char *parse_atom(const char *str, vector_token *tokens)
     return parse_symbol(ptr, tokens);
 }
 
-int tokenize_str__(const char *str, vector_token *tokens, const char **last)
+// tokenizes from 'strr until end of list or first symbol.
+// updates 'last' to be the pointer to next char
+// which has not been read yet.
+int tokenize_str_r(const char *str, vector_token *tokens, const char **last)
 {
     const char *ptr = str;
     int ret = 0;
@@ -278,7 +282,7 @@ int tokenize_str__(const char *str, vector_token *tokens, const char **last)
                               {T_LIST_START, 1, .is_str=false, .chr=LIST_START_CHR});
             ptr++;
             //fprintf(stderr, "LIST_START_CHR rest:`%s`\n", ptr);
-            ret = tokenize_str__(ptr, tokens, last);
+            ret = tokenize_str_r(ptr, tokens, last);
             break;
         } else if (*ptr == LIST_END_CHR) {
             vector_push_token(tokens, (token)
@@ -323,55 +327,24 @@ int tokenize_str__(const char *str, vector_token *tokens, const char **last)
     return ret;
 }
 
-static const char *tokenize_str_(const char *str, vector_token *tokens)
-{
-    const char *ptr = str;
-    while (*ptr) {
-        // List
-        if (*ptr == LIST_START_CHR) {
-            vector_push_token(tokens, (token)
-                              {T_LIST_START, 1, .is_str=false, .chr=LIST_START_CHR});
-            ptr++;
-            ptr = tokenize_str_(ptr, tokens);
-            if (!ptr)  {
-                NULL;
-            }
-        } else if (*ptr == LIST_END_CHR) {
-            vector_push_token(tokens, (token)
-                              {T_LIST_END, 1, .is_str=false, .chr=LIST_END_CHR});
-            ptr++;
-            return ptr;
-        // ';' Comments ignore the rest of the line.
-        } else if (*ptr == CMT_START_CHR) {
-            ptr = parse_comment(ptr, tokens);
-            if (!ptr)  {
-                return NULL;
-            }
-        } else if (*ptr == NEWLINE_CHR) {
-            vector_push_token(tokens, (token)
-                              {T_NEWLINE, 1, .is_str=false, .chr=NEWLINE_CHR});
-            ptr++;
-            return ptr;
-        // Blanks
-        } else if (isblank(*ptr)) {
-            ptr = parse_blank(ptr, tokens);
-            if (!ptr)  {
-                return NULL;
-            }
-        } else {
-            ptr = parse_atom(ptr, tokens);
-            if (!ptr)  {
-                parse_error("Failed to parse atom.\n");
-                return NULL;
-            }
-        }
-    }
-    return ptr;
-}
-
 int tokenize_str(const char *str, vector_token *tokens)
 {
-    return tokenize_str_(str, tokens) == NULL;
+    size_t len = strlen(str);
+    size_t last_i = 0;
+    size_t tokens_start = 0;
+    while (true) {
+        if (last_i >= len) {
+            break;
+        }
+        const char *start = str + last_i;
+        const char *last = start;
+        if (tokenize_str_r(start, tokens, &last)) {
+            break;
+        }
+        last_i = last - str;
+        tokens_start = tokens->len;
+    }
+    return 0;
 }
 
 void token_destroy(token *tok)

@@ -13,6 +13,7 @@ const builtin builtins[] = {
     {"sum", builtin_number_sum},
     {"+", builtin_number_sum},
     {"-", builtin_number_minus},
+    {"*", builtin_number_mult},
     {"if", builtin_if},
     {"repr", builtin_repr},
     {"list", builtin_list},
@@ -248,6 +249,51 @@ lsp_obj *builtin_number_sum(vector_lsp_obj_ptr *argv)
     if (using_float) {
         lsp_obj_init(res, OBJ_FLOAT);
         res->flt = flt_sum + int_sum;
+    } else {
+        lsp_obj_init(res, OBJ_INT);
+        res->integer = int_sum;
+    }
+    return res;
+}
+
+lsp_obj *builtin_number_mult(vector_lsp_obj_ptr *argv)
+{
+    if (!argv || argv->len < 2) {
+        // 0
+        lsp_obj *res = xmalloc(sizeof(*res));
+        lsp_obj_init(res, OBJ_INT);
+        res->integer = 0;
+        return res;
+    }
+
+    bool using_float = false;
+    int64_t int_sum = 1;
+    double flt_sum = 1;
+
+    for (size_t i = 1; i < argv->len; i++) {
+        const lsp_obj *ptr = vector_get_lsp_obj_ptr(argv, i);
+        assert(!argv->error);
+        switch (ptr->type) {
+            case OBJ_INT:
+                int_sum *= ptr->integer;
+                break;
+
+            case OBJ_FLOAT:
+                using_float = true;
+                flt_sum *= ptr->flt;
+                break;
+
+            default:
+                fprintf(stderr, "Runtime error: `*` expected number, got %s!\n", obj_type_str[ptr->type]);
+                exit(1);
+                break;
+        }
+    }
+
+    lsp_obj *res = xmalloc(sizeof(*res));
+    if (using_float) {
+        lsp_obj_init(res, OBJ_FLOAT);
+        res->flt = flt_sum * int_sum;
     } else {
         lsp_obj_init(res, OBJ_INT);
         res->integer = int_sum;

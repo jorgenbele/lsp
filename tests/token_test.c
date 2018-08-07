@@ -49,11 +49,13 @@ static void assert_token_equal(const token *t1, const token *t2) {
     }
 }
 
+#include <stdio.h>
 static void assert_tokenize(const char *str, token expected[], size_t len)
 {
     vector_token tokens;
     assert_false(vector_init_token(&tokens));
     assert_false(tokenize_str(str, &tokens));
+    //fprintf(stderr, "%lu == %lu\n", tokens.len, len);
     assert_int_equal(tokens.len, len);
 
     for (size_t i = 0; i < len; i++) {
