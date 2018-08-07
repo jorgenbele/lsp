@@ -64,10 +64,10 @@ static void repr_simple(void **state) {
 
 // test sum
 static void sum_integers_simple(void **state) {
-    assert_repr_equal("(sum 1 -3 9)", (const char *[]) {"#int:7"}, 1);
-    assert_repr_equal("(sum -1 -3 9)", (const char *[]) {"#int:5"}, 1);
-    assert_repr_equal("(sum +0 -1 -3 9)", (const char *[]) {"#int:5"}, 1);
-    assert_repr_equal("(sum (sum 1 2 3) (sum 2 3 4))", (const char *[]) {"#int:15"}, 1);
+    assert_repr_equal("(+ 1 -3 9)", (const char *[]) {"#int:7"}, 1);
+    assert_repr_equal("(+ -1 -3 9)", (const char *[]) {"#int:5"}, 1);
+    assert_repr_equal("(+ +0 -1 -3 9)", (const char *[]) {"#int:5"}, 1);
+    assert_repr_equal("(+ (+ 1 2 3) (+ 2 3 4))", (const char *[]) {"#int:15"}, 1);
 }
 
 // test minus
@@ -84,11 +84,9 @@ static void minus_integers_simple(void **state) {
 
 // test list
 static void list_simple(void **state) {
-    assert_repr_equal("(list + 1 2 3)", (const char *[]) {"#list:(#sym:+ #int:1 #int:2 #int:3)"}, 1);
-    assert_repr_not_equal("(list (list + 1 2 3))", (const char *[]) {"#list:(#int:6)"}, 1);
-    assert_repr_equal("(list (list + 1 2 3))", (const char *[]) {"#list:(#list:(#sym:+ #int:1 #int:2 #int:3))"}, 1);
-    assert_repr_equal("(list list + 1 2 3)", (const char *[]) {"#list:(#sym:list #sym:+ #int:1 #int:2 #int:3)"}, 1);
-    assert_repr_equal("(list list + 1 2 3)", (const char *[]) {"#list:(#sym:list #sym:+ #int:1 #int:2 #int:3)"}, 1);
+    assert_repr_equal("(quote (+ 1 2 3))", (const char *[]) {"#list:(#sym:+ #int:1 #int:2 #int:3)"}, 1);
+    assert_repr_not_equal("(quote (+ 1 2 3))", (const char *[]) {"#list:(#int:6)"}, 1);
+    assert_repr_equal("(quote (quote (+ 1 2 3)))", (const char *[]) {"#list:(#sym:quote #list:(#sym:+ #int:1 #int:2 #int:3))"}, 1);
 }
 
 int main(void)
