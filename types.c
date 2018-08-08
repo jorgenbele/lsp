@@ -117,6 +117,9 @@ lsp_obj *lsp_obj_clone(const lsp_obj *src)
 
 int lsp_obj_init_w(lsp_obj *obj, lsp_obj_type type, void *data, size_t size)
 {
+    static size_t inited = 0;
+    inited++;
+    //fprintf(stderr, "lsp_obj_inited: %lu\n", inited);
     switch (type) {
         case OBJ_STRING: {
             // NOTE size is actually the length of the string.
@@ -170,6 +173,9 @@ int lsp_obj_init(lsp_obj *obj, lsp_obj_type type)
 
 int lsp_obj_destroy(lsp_obj *obj)
 {
+    static size_t destroyed = 0;
+    destroyed++;
+    //fprintf(stderr, "lsp_obj_destroyed: %lu\n", destroyed);
     switch (obj->type) {
         case OBJ_INT:
         case OBJ_FLOAT:
@@ -207,6 +213,8 @@ int lsp_obj_destroy(lsp_obj *obj)
             symb->symb = NULL;
             if (symb->val) {
                 assert(!lsp_obj_destroy(symb->val));
+                free(symb->val);
+                symb->val = NULL;
             }
             break;
         }
@@ -265,9 +273,36 @@ lsp_obj *lsp_obj_eval(lsp_obj *obj)
 {
     if (obj->type == OBJ_LIST) {
         return list_evaluate((lsp_list *) obj);
+    } else if (obj->type == OBJ_SYMBOL) {
+        return lsp_symbol_eval((lsp_symbol *) obj);
     }
     return lsp_obj_clone(obj);
 }
+
+
+lsp_obj *lsp_symbol_eval(const lsp_symbol *symb)
+{
+// check if it exists in the symbols list, and if so return
+// (a clone of) the val it contains.
+    size_t len = lsp_list_len(&global_interp_ctx.symbols);
+    for (size_t i = 0; i < len; i++) {
+        const lsp_obj *e_obj = lsp_list_get(&global_interp_ctx.symbols, i);
+        assert(e_obj->type == OBJ_SYMBOL);
+        const lsp_symbol *e_symb = (lsp_symbol *) e_obj;
+
+        if (e_symb->symb_len == symb->symb_len
+            && !strncmp(e_symb->symb, symb->symb, e_symb->symb_len)) {
+            if (e_symb->val->type == OBJ_SYMBOL) {
+                // recurse until no symbol is found
+                // or it is itself
+                return lsp_symbol_eval(e_symb);
+            }
+            return lsp_obj_clone(e_symb->val);
+        }
+    }
+    return lsp_obj_clone((lsp_obj *) symb); // evaluates to itself
+}
+
 
 static int repr_(lsp_obj *obj, char **out, size_t *size, bool repr)
 {

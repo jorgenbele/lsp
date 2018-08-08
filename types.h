@@ -92,6 +92,7 @@ int lsp_str_destroy(lsp_str *str);
 int lsp_str_cat_n(lsp_str *lstr, const char *str, size_t str_len);
 
 lsp_obj *lsp_obj_eval(lsp_obj *obj);
+lsp_obj *lsp_symbol_eval(const lsp_symbol *symb);
 
 int lsp_list_push(lsp_list *lst, lsp_obj *obj);
 size_t lsp_list_len(lsp_list *lst);

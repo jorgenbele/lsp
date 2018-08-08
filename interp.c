@@ -7,7 +7,6 @@
 
 // static functions
 static int set_symbol(lsp_symbol *symb);
-
 interp_ctx global_interp_ctx;
 
 DEF_VECTOR_FUNCS(interp_state, interp_state, ((interp_state) {NORMAL, 0}));
@@ -31,6 +30,7 @@ int interp_init()
 
 int interp_destroy()
 {
+    fprintf(stderr, "destroying interp context!\n");
     return interp_ctx_destroy(&global_interp_ctx);
 }
 
@@ -63,13 +63,13 @@ lsp_list *ast_build(vector_token *tokens)
 
     // Macro used to push to either the top lst_stack list,
     // or directly to ast.
-#define PUSH_TOP_LIST_STACK_OR_AST(ptr)                             \
-    do {                                                            \
-        lsp_list *below = vector_peek_lsp_list_ptr(&lst_stack);     \
-        if (!below) {                                               \
-            below = ast;                                            \
-        }                                                           \
-        vector_push_lsp_obj_ptr(&below->vec, (lsp_obj *) ptr);      \
+#define PUSH_TOP_LIST_STACK_OR_AST(ptr)                         \
+    do {                                                        \
+        lsp_list *below = vector_peek_lsp_list_ptr(&lst_stack); \
+        if (!below) {                                           \
+            below = ast;                                        \
+        }                                                       \
+        vector_push_lsp_obj_ptr(&below->vec, (lsp_obj *) ptr);  \
     } while (0);
 
     for (size_t i = 0; i < tokens->len; i++) {
@@ -178,7 +178,6 @@ int interp_ctx_init(interp_ctx *ctx)
 
 int interp_ctx_destroy(interp_ctx *ctx)
 {
-    memset(ctx, 0, sizeof (*ctx));
     assert(!lsp_obj_destroy((lsp_obj *) &ctx->symbols));
     return 0;
 }
@@ -197,12 +196,20 @@ lsp_list *ast_execute(lsp_list *ast)
             case OBJ_STRING:
             case OBJ_INT:
             case OBJ_FLOAT:
-            case OBJ_SYMBOL:
             case OBJ_GENERIC: {
                 // resolve to itself
                 lsp_obj *clone = lsp_obj_clone(obj);
                 assert(clone);
                 vector_push_lsp_obj_ptr(&rlst->vec, clone);
+                break;
+            }
+
+            case OBJ_SYMBOL: {
+                lsp_symbol *symb = (lsp_symbol *) obj;
+                lsp_obj *evaluated = lsp_symbol_eval(symb);
+                if (evaluated) {
+                    vector_push_lsp_obj_ptr(&rlst->vec, evaluated);
+                }
                 break;
             }
 
@@ -237,32 +244,7 @@ static int set_symbol(lsp_symbol *symb)
             return 1;
         }
     }
-
     return lsp_list_push(&global_interp_ctx.symbols, (lsp_obj *) symb);
-}
-
-static lsp_obj *eval_symbol(const lsp_symbol *symb)
-{
-    // check if it exists in the symbols list, and if so return
-    // (a clone of) the val it contains.
-    size_t len = lsp_list_len(&global_interp_ctx.symbols);
-    for (size_t i = 0; i < len; i++) {
-        const lsp_obj *e_obj = lsp_list_get(&global_interp_ctx.symbols, i);
-        assert(e_obj->type == OBJ_SYMBOL);
-        const lsp_symbol *e_symb = (lsp_symbol *) e_obj;
-
-        if (e_symb->symb_len == symb->symb_len
-            && !strncmp(e_symb->symb, symb->symb, e_symb->symb_len)) {
-            if (e_symb->val->type == OBJ_SYMBOL) {
-                // recurse until no symbol is found
-                // or it is itself
-                return eval_symbol(e_symb);
-            }
-            return lsp_obj_clone(e_symb->val);
-        }
-    }
-
-    return lsp_obj_clone((lsp_obj *) symb); // evaluates to itself
 }
 
 /*
@@ -294,21 +276,19 @@ lsp_obj *evaluate_defvar(lsp_list *argl)
     lsp_obj *var_eval = lsp_list_get_eval(argl, 1); // NOTE: uses eval
     assert(var_eval);
     assert(var_eval->type == OBJ_SYMBOL);
+
     lsp_symbol *symb = (lsp_symbol *) var_eval;
 
     lsp_obj *value = lsp_list_get_eval(argl, 2); // NOTE: uses eval
     assert(value);
-
     symb->val = value;
-
     assert(!set_symbol(symb));
-
     return lsp_obj_new(OBJ_GENERIC);
 }
 
 static lsp_obj *execute_builtin(lsp_symbol *symb, lsp_list *lst)
 {
-    fprintf(stderr, "**execute builtin**\n");
+//fprintf(stderr, "**execute builtin**\n");
     BUILTIN_FUNC_PTR(fptr) = builtin_get_func(symb->symb);
     if (fptr) {
         return fptr(lst);
@@ -338,30 +318,25 @@ lsp_obj *list_evaluate(lsp_list *lst)
 
     if (front->type == OBJ_SYMBOL) {
         // evaluate the symbol
-        lsp_obj *eval = eval_symbol((lsp_symbol *) front);
+        lsp_obj *eval = lsp_symbol_eval((lsp_symbol *) front);
         assert(eval);
 
         if (eval->type == OBJ_SYMBOL) {
             // check if builtin
             lsp_obj *rlst = execute_builtin((lsp_symbol *) eval, lst);
             lsp_obj_destroy(eval);
+            free(eval);
             if (rlst) {
                 ret = rlst;
-                goto end;
             }
         } else {
             ret = eval;
         }
 
-
-        fprintf(stderr, "Runtime error: unable to resolve symbol: %s\n",
-                ((lsp_symbol *) eval)->symb);
-        ret = NULL; //...
     } else {
         // was not a function call, resolve to itself
         ret = lsp_obj_clone((lsp_obj *) lst);
     }
 
-end:
     return ret;
 }

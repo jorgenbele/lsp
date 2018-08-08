@@ -247,7 +247,7 @@ int main(int argc, const char *argv[])
 
     int ret = 0;
     if (use_repl) {
-        return repl_start(print_ast, print_tokens, print_time);
+        ret = repl_start(print_ast, print_tokens, print_time);
     } else {
         for (int i = start_arg; i < argc; i++) {
             FILE *fp = fopen(argv[i], "r");
