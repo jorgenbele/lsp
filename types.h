@@ -68,6 +68,7 @@ struct lsp_symbol {
     LSP_OBJ_STRUCT;
     char *symb;      // const
     size_t symb_len; // const
+    lsp_obj *val;    // value
 };
 typedef struct lsp_symbol lsp_symbol;
 

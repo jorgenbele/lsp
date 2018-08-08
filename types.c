@@ -205,6 +205,9 @@ int lsp_obj_destroy(lsp_obj *obj)
             // TODO: free data?
             free(symb->symb);
             symb->symb = NULL;
+            if (symb->val) {
+                assert(!lsp_obj_destroy(symb->val));
+            }
             break;
         }
 
@@ -261,7 +264,7 @@ lsp_obj *lsp_obj_new(lsp_obj_type type)
 lsp_obj *lsp_obj_eval(lsp_obj *obj)
 {
     if (obj->type == OBJ_LIST) {
-        return evaluate_list((lsp_list *) obj);
+        return list_evaluate((lsp_list *) obj);
     }
     return lsp_obj_clone(obj);
 }
@@ -269,10 +272,12 @@ lsp_obj *lsp_obj_eval(lsp_obj *obj)
 static int repr_(lsp_obj *obj, char **out, size_t *size, bool repr)
 {
     if (repr) {
+        assert(obj);
         const char *short_name = obj_type_str_short[obj->type];
         alloc_strcatf(out, size, "%s:", short_name);
     }
 
+    int ret = 0;
     switch (obj->type) {
         case OBJ_STRING:
             alloc_strcatf(out, size, "\"%s\"", obj->ptr);
@@ -288,6 +293,10 @@ static int repr_(lsp_obj *obj, char **out, size_t *size, bool repr)
 
         case OBJ_SYMBOL:
             alloc_strcatf(out, size, "%s", ((lsp_symbol *)obj)->symb);
+            if (((lsp_symbol *)obj)->val) {
+                alloc_strcatf(out, size, ":");
+                ret = repr_(((lsp_symbol *)obj)->val, out, size, repr);
+            }
             break;
 
         case OBJ_GENERIC:
@@ -298,11 +307,20 @@ static int repr_(lsp_obj *obj, char **out, size_t *size, bool repr)
             alloc_strcatf(out, size, "(");
 
             lsp_list *lst = (lsp_list *) obj;
-            for (size_t k = 0; k < lst->vec.len; k++) {
-                lsp_obj *o = vector_get_lsp_obj_ptr(&lst->vec, k);
-                if (lsp_obj_repr_str(o, out, size)) {
-                    return 1;
+            assert(lst);
+            size_t len = lsp_list_len(lst);
+            for (size_t k = 0; k < len; k++) {
+                lsp_obj *o = lsp_list_get(lst, k);
+                assert(o);
+                assert(!lsp_list_error(lst));
+                if (repr_(o, out, size, repr)) {
+                    ret = 1;
+                    goto end;
                 }
+                //if (lsp_obj_repr_str(o, out, size)) {
+                //    ret = 1;
+                //    goto end;
+                //}
                 if (k + 1 < lst->vec.len) {
                     alloc_strcatf(out, size, " ");
                 } 
@@ -312,7 +330,8 @@ static int repr_(lsp_obj *obj, char **out, size_t *size, bool repr)
         }
     }
 
-    return 0;
+end:
+    return ret;
 }
 
 int lsp_obj_repr_str(lsp_obj *obj, char **out, size_t *size)

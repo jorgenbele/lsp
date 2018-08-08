@@ -24,7 +24,6 @@ const char *token_type_str[] = {
     "T_BLANK", "T_NEWLINE",
     "T_SYMBOL", "T_STRING", "T_INT",
     "T_FLOAT",
-    "T_QUOTE",
 };
 
 //static const struct token default_token = {T_UNKNOWN, 0};
@@ -185,7 +184,6 @@ static const char *parse_string(const char *str, vector_token *tokens)
                     parse_error("Unknown escape character: %c", *ptr);
                     exit(1);
                     break;
-
             }
             *sptr++ = c;
             escaped = false;

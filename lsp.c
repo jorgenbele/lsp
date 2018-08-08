@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdint.h>
+#include <time.h>
 
 #include "vector.h"
 #include "interp.h"
@@ -77,17 +78,17 @@ static int repl_read_next(FILE *fp, char **buf, size_t *bsize,
     return ret;
 }
 
-static void create_and_execute_ast(vector_token *tokens, bool print_ast, bool print_rlist)
+static void build_and_execute_ast(vector_token *tokens, bool print_ast, bool print_rlist)
 {
     // create ast
-    lsp_list *ast = create_ast(tokens);
+    lsp_list *ast = ast_build(tokens);
     assert(ast);
     if (print_ast) {
         lsp_obj_print_repr((lsp_obj *) ast);
     }
 
     // execute
-    lsp_list *rlst = execute_ast(ast);
+    lsp_list *rlst = ast_execute(ast);
     assert(rlst);
     if (print_rlist) {
         for (size_t i = 0; i < rlst->vec.len; i++) {
@@ -106,7 +107,24 @@ static void create_and_execute_ast(vector_token *tokens, bool print_ast, bool pr
     free(ast);
 }
 
-static int repl_start(bool print_ast, bool print_tokens)
+#define START_TIME_TAKING_BLOCK(enabled)                \
+    do {                                                \
+    struct timespec start;                              \
+    assert(!clock_gettime(CLOCK_MONOTONIC, &start));
+
+#define END_TIME_TAKING_BLOCK(enabled)                          \
+    struct timespec end;                                        \
+    assert(!clock_gettime(CLOCK_MONOTONIC, &end));              \
+    if (enabled) {                                              \
+        int64_t diff_s = end.tv_sec - start.tv_sec;             \
+        int64_t diff_ns = end.tv_nsec - start.tv_nsec;          \
+        int64_t diff_ms = diff_ns/1000000;                      \
+        fprintf(stderr, "Executed in %ld s %ld ns (%ld ms)\n",  \
+                diff_s, diff_ns, diff_ms);                      \
+    }                                                           \
+    } while (0);
+
+static int repl_start(bool print_ast, bool print_tokens, bool print_time)
 {
     vector_token tokens;
     assert(!vector_init_token(&tokens));
@@ -116,7 +134,9 @@ static int repl_start(bool print_ast, bool print_tokens)
 
     while (!repl_read_next(stdin, &s, &ss, &tokens, true)) {
         if (!print_tokens || print_ast) {
-            create_and_execute_ast(&tokens, print_ast, true);
+            START_TIME_TAKING_BLOCK(print_time)
+            build_and_execute_ast(&tokens, print_ast, true);
+            END_TIME_TAKING_BLOCK(print_time)
         }
 
         for (size_t i = 0; i < tokens.len; i++) {
@@ -144,7 +164,8 @@ static int repl_start(bool print_ast, bool print_tokens)
     return 0;
 }
 
-static int execute_file(FILE *fp, bool print_ast, bool print_tokens)
+static int execute_file(FILE *fp, bool print_ast, bool print_tokens,
+                        bool print_time)
 {
     vector_token tokens;
     assert(!vector_init_token(&tokens));
@@ -160,7 +181,9 @@ static int execute_file(FILE *fp, bool print_ast, bool print_tokens)
             }
         }
 
-        create_and_execute_ast(&tokens, print_ast, false);
+        START_TIME_TAKING_BLOCK(print_time);
+        build_and_execute_ast(&tokens, print_ast, false);
+        END_TIME_TAKING_BLOCK(print_time);
 
         for (size_t i = 0; i < tokens.len; i++) {
             token token = vector_get_token(&tokens, i);
@@ -186,9 +209,12 @@ static int execute_file(FILE *fp, bool print_ast, bool print_tokens)
 
 int main(int argc, const char *argv[])
 {
+    assert(!interp_init());
+
     bool use_repl = false;
     bool print_ast = false;
     bool print_tokens = false;
+    bool print_time = false;
 
     int start_arg = 1;
 
@@ -201,6 +227,9 @@ int main(int argc, const char *argv[])
                         break;
                     case 'a':
                         print_ast = true;
+                        break;
+                    case 's':
+                        print_time = true;
                         break;
                     default:
                         fprintf(stderr, "Unknown flag: '%c'\n", argv[i][1]);
@@ -216,20 +245,26 @@ int main(int argc, const char *argv[])
         use_repl = true;
     }
 
+    int ret = 0;
     if (use_repl) {
-        return repl_start(print_ast, print_tokens);
+        return repl_start(print_ast, print_tokens, print_time);
     } else {
         for (int i = start_arg; i < argc; i++) {
             FILE *fp = fopen(argv[i], "r");
             if (!fp) {
                 perror("fopen");
-                exit(1);
+                ret = 1;
+                break;
             }
-            int ret = execute_file(fp, print_ast, print_tokens);
+            int r = execute_file(fp, print_ast, print_tokens, print_time);
             fclose(fp);
-            if (ret) {
-                return ret;
+            if (r) {
+                ret = r;
+                break;
             }
         }
     }
+
+    assert(!interp_destroy());
+    return ret;
 }

@@ -37,6 +37,7 @@ const builtin builtins[] = {
     {"repr", builtin_repr},
     {"eval", builtin_eval},
     {"repeat", builtin_repeat},
+    {"len", builtin_list_len},
     {NULL, NULL},
 };
 
@@ -228,6 +229,8 @@ lsp_obj *builtin_if(lsp_list *argl)
     return evaluated;
 }
 
+
+
 // (quote <obj>) => <obj>
 lsp_obj *builtin_quote(lsp_list *argl)
 {
@@ -306,6 +309,7 @@ lsp_obj *builtin_repeat(lsp_list *argl)
 
     lsp_obj *obj_n = lsp_list_get_eval(argl, 1);
     assert(obj_n);
+    assert(obj_n->type == OBJ_INT);
     assert(!lsp_list_error(argl));
     lsp_obj *obj = lsp_list_get_eval(argl, 2);
     assert(obj);
@@ -324,15 +328,27 @@ lsp_obj *builtin_repeat(lsp_list *argl)
         assert(!vector_push_lsp_obj_ptr(&lst->vec, clone));
     }
 
-    lsp_obj_destroy(obj_n);
-    free(obj_n);
-
     if (obj_n->integer == 0) {
         lsp_obj_destroy(obj);
         free(obj);
     }
 
+    lsp_obj_destroy(obj_n);
+    free(obj_n);
+
     //fprintf(stderr, "list:\n");
     //lsp_obj_print_repr((lsp_obj *) lst);
     return (lsp_obj *) lst;
+}
+
+lsp_obj *builtin_list_len(lsp_list *argl)
+{
+    lsp_obj *arg = lsp_list_get_eval(argl, 1);
+    assert(arg && arg->type == OBJ_LIST);
+    int64_t len = lsp_list_len((lsp_list *) arg);
+    lsp_obj *int_obj = lsp_obj_new(OBJ_INT);
+    int_obj->integer = len;
+    lsp_obj_destroy(arg);
+    free(arg);
+    return int_obj;
 }

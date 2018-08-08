@@ -12,6 +12,7 @@ CC=clang
 
 # define any compile-time flags
 CFLAGS := $(CFLAGS) -g -Og -Wall -Werror
+#CFLAGS := $(CFLAGS) -O3 -Wall -Werror
 LIBS :=
 SRCS = lsp.c token.c builtins.c interp.c types.c utils.c
 OBJS = $(SRCS:.c=.o)

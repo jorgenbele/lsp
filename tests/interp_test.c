@@ -13,10 +13,10 @@ static void assert_repr_equal_(const char *input, const char *expected[], size_t
     assert_false(vector_init_token(&tokens));
     assert_false(tokenize_str(input, &tokens));
 
-    lsp_list *ast = create_ast(&tokens);
+    lsp_list *ast = ast_build(&tokens);
     assert_non_null(ast);
 
-    lsp_list *rlst = execute_ast(ast);
+    lsp_list *rlst = ast_execute(ast);
     assert_non_null(rlst);
 
     char *buf = NULL;

@@ -5,6 +5,25 @@
 
 #include "types.h"
 
+#define REQUIRES_N_ARGS(name, argl, n)                                  \
+    if (lsp_list_len(argl) != n + 1) {                                  \
+        fprintf(stderr, "Runtime error: failed to run `%s`, requires %d arguments!\n", name, n); \
+        exit(1);                                                        \
+    }
+
+#define REQUIRES_ATLEAST_N_ARGS(name, argl, n)                          \
+    if (lsp_list_len(argl) < n + 1) {                                   \
+        fprintf(stderr, "Runtime error: failed to run `%s`, requires at least %d arguments!\n", name, n); \
+        exit(1);                                                        \
+    }
+
+#define REQUIRES_MAXIMUM_N_ARGS(name, argl, n)                          \
+    if (lsp_list_len(argl) > n + 1) {                                   \
+        fprintf(stderr, "Runtime error: failed to run `%s`, takes maximum %d arguments!\n", name, n); \
+        exit(1);                                                        \
+    }
+
+
 #define BUILTIN_FUNC_PTR(name) lsp_obj_ptr (*name)(lsp_list *)
 
 struct builtin {
@@ -29,5 +48,7 @@ lsp_obj *builtin_quote(lsp_list *argl);
 lsp_obj *builtin_repr(lsp_list *argl);
 lsp_obj *builtin_eval(lsp_list *argl);
 lsp_obj *builtin_repeat(lsp_list *argl);
+
+lsp_obj *builtin_list_len(lsp_list *argl);
 
 #endif // __BUILTINS_H_
