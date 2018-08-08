@@ -162,9 +162,35 @@ static const char *parse_string(const char *str, vector_token *tokens)
         } else if (*ptr == STRING_END_CHR && !escaped) {
             ptr++;
             break;
+        } else if (escaped) {
+            int c = 0;
+            // TODO: support \NNN, \xHH, \uHHHH
+            switch (*ptr) {
+                case 'a': c = '\a'; break;
+                case 'b': c = '\b'; break;
+                case 'e': c = '\e'; break;
+                case 'f': c = '\f'; break;
+                case 'n': c = '\n'; break;
+                case 'r': c = '\r'; break;
+                case 't': c = '\t'; break;
+                case 'v': c = '\v'; break;
+
+                case '\"':
+                case '\\':
+                case '\'':
+                    c = *ptr;
+                    break;
+
+                default:
+                    parse_error("Unknown escape character: %c", *ptr);
+                    exit(1);
+                    break;
+
+            }
+            *sptr++ = c;
+            escaped = false;
         } else {
             *sptr++ = *ptr;
-            escaped = false;
         }
         ptr++;
     }
