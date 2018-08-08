@@ -41,8 +41,8 @@ static int repl_read_next(FILE *fp, char **buf, size_t *bsize,
             last_i = 0;
             //fprintf(stderr, "GETLINE: `%s`\n", *buf);
         }
-
         //fprintf(stderr, "BUF: `%s`\n", *buf);
+
         // update the last pointer using the saved offset
         const char *start = (*buf) + last_i;
         const char *last = start;
@@ -53,11 +53,6 @@ static int repl_read_next(FILE *fp, char **buf, size_t *bsize,
             done = true;
             break;
         }
-        //if (!r) {
-        //    done = true;
-        //    ret = r;
-        //    break;
-        //}
 
         // since tokenize_str__ takes last as a pointer, and
         // the pointer may become invalidated on reallocation
@@ -65,7 +60,6 @@ static int repl_read_next(FILE *fp, char **buf, size_t *bsize,
         last_i = last - *buf;
         //fprintf(stderr, "tokens_start: %lu, lists: %lu, r: %d, last_i: %lu\n", tokens_start, lists, r, last_i);
 
-        //fprintf(stderr, "TOKENS: ");
         for (size_t i = tokens_start; i < tokens->len; i++) {
             token token = vector_get_token(tokens, i);
             if (token.type == T_LIST_START) {
@@ -73,7 +67,6 @@ static int repl_read_next(FILE *fp, char **buf, size_t *bsize,
             } else if (token.type == T_LIST_END) {
                 lists--;
             }
-            //token_print(&token);
         }
         tokens_start = tokens->len;
 
@@ -84,11 +77,14 @@ static int repl_read_next(FILE *fp, char **buf, size_t *bsize,
     return ret;
 }
 
-static void create_and_execute_ast(vector_token *tokens, bool print_rlist)
+static void create_and_execute_ast(vector_token *tokens, bool print_ast, bool print_rlist)
 {
     // create ast
     lsp_list *ast = create_ast(tokens);
     assert(ast);
+    if (print_ast) {
+        lsp_obj_print_repr((lsp_obj *) ast);
+    }
 
     // execute
     lsp_list *rlst = execute_ast(ast);
@@ -110,7 +106,7 @@ static void create_and_execute_ast(vector_token *tokens, bool print_rlist)
     free(ast);
 }
 
-static int repl_start(bool print_tokens)
+static int repl_start(bool print_ast, bool print_tokens)
 {
     vector_token tokens;
     assert(!vector_init_token(&tokens));
@@ -119,8 +115,8 @@ static int repl_start(bool print_tokens)
     size_t ss = 0;
 
     while (!repl_read_next(stdin, &s, &ss, &tokens, true)) {
-        if (!print_tokens) {
-            create_and_execute_ast(&tokens, true);
+        if (!print_tokens || print_ast) {
+            create_and_execute_ast(&tokens, print_ast, true);
         }
 
         for (size_t i = 0; i < tokens.len; i++) {
@@ -148,7 +144,7 @@ static int repl_start(bool print_tokens)
     return 0;
 }
 
-static int execute_file(FILE *fp)
+static int execute_file(FILE *fp, bool print_ast, bool print_tokens)
 {
     vector_token tokens;
     assert(!vector_init_token(&tokens));
@@ -157,11 +153,17 @@ static int execute_file(FILE *fp)
     size_t ss = 0;
 
     while (!repl_read_next(fp, &s, &ss, &tokens, false)) {
-        create_and_execute_ast(&tokens, false);
+        if (print_tokens) {
+            for (size_t i = 0; i < tokens.len; i++) {
+                token token = vector_get_token(&tokens, i);
+                token_print(&token);
+            }
+        }
+
+        create_and_execute_ast(&tokens, print_ast, false);
 
         for (size_t i = 0; i < tokens.len; i++) {
             token token = vector_get_token(&tokens, i);
-            //token_print(&token);
             token_destroy(&token);
         }
         tokens.len = 0;
@@ -185,25 +187,45 @@ static int execute_file(FILE *fp)
 int main(int argc, const char *argv[])
 {
     bool use_repl = false;
+    bool print_ast = false;
     bool print_tokens = false;
-    if (argc < 2) {
+
+    int start_arg = 1;
+
+    for (int i = 1; i < argc; i++) {
+        if (argv[i][0] == '-') {
+            for (int k = 1; argv[i][k]; k++) {
+                switch(argv[i][k]) {
+                    case 't':
+                        print_tokens = true;
+                        break;
+                    case 'a':
+                        print_ast = true;
+                        break;
+                    default:
+                        fprintf(stderr, "Unknown flag: '%c'\n", argv[i][1]);
+                }
+            }
+            start_arg++;
+        } else {
+            break;
+        }
+    }
+
+    if (argc - start_arg < 1) {
         use_repl = true;
-    } else if (argv[1][0] == '-' && argv[1][1] == 't') {
-        use_repl = true;
-        print_tokens = true;
     }
 
     if (use_repl) {
-        return repl_start(print_tokens);
+        return repl_start(print_ast, print_tokens);
     } else {
-        for (int i = 1; i < argc; i++) {
-            //fprintf(stderr, "Executing: %s\n", argv[i]);
+        for (int i = start_arg; i < argc; i++) {
             FILE *fp = fopen(argv[i], "r");
             if (!fp) {
                 perror("fopen");
                 exit(1);
             }
-            int ret = execute_file(fp);
+            int ret = execute_file(fp, print_ast, print_tokens);
             fclose(fp);
             if (ret) {
                 return ret;

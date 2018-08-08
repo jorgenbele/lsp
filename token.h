@@ -25,12 +25,15 @@ enum token_type {
     T_BLANK, T_NEWLINE,
     T_SYMBOL, T_STRING, T_INT,
     T_FLOAT,
-    T_QUOTE
 };
 
 extern const char *token_type_str[];
 
 #define TOKEN_TYPE_STR(type) token_type_str[type]
+
+#define QUOTE_CHR '\''
+#define QUOTE_SYMB_NAME "quote"
+#define QUOTE_SYMB_LEN 5
 
 #define NEWLINE_CHR       '\n'
 #define CMT_START_CHR     ';'

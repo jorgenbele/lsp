@@ -286,7 +286,9 @@ lsp_obj *builtin_eval(lsp_list *argl)
     REQUIRES_ATLEAST_N_ARGS("eval", argl, 1);
     // eval 2 times.
     lsp_obj *obj = lsp_list_get_eval(argl, 1);
+    assert(obj);
     lsp_obj *eval_obj = lsp_obj_eval(obj);
+    assert(eval_obj);
     lsp_obj_destroy(obj);
     free(obj);
     return eval_obj;

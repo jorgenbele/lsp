@@ -283,6 +283,7 @@ int tokenize_str_r(const char *str, vector_token *tokens, const char **last)
             ptr++;
             //fprintf(stderr, "LIST_START_CHR rest:`%s`\n", ptr);
             ret = tokenize_str_r(ptr, tokens, last);
+            ptr = *last;
             break;
         } else if (*ptr == LIST_END_CHR) {
             vector_push_token(tokens, (token)
@@ -304,6 +305,21 @@ int tokenize_str_r(const char *str, vector_token *tokens, const char **last)
             //fprintf(stderr, "NEWLINE_CHR rest:`%s`\n", ptr);
             *last = ptr;
             break;
+
+        } else if (*ptr == QUOTE_CHR) {
+            // Convert inline to the form (quote ...)
+            // by pushing LIST_START, SYMBOL:quote,
+            vector_push_token(tokens, (token)
+                              {T_LIST_START, 1, .is_str=false, .chr=LIST_START_CHR});
+            vector_push_token(tokens, (token)
+                              {T_SYMBOL, QUOTE_SYMB_LEN, .is_str=true, .str=xstrdupn(QUOTE_SYMB_NAME, QUOTE_SYMB_LEN)});
+            ptr++;
+            ret = tokenize_str_r(ptr, tokens, last);
+            ptr = *last;
+            vector_push_token(tokens, (token)
+                              {T_LIST_END, 1, .is_str=false, .chr=LIST_END_CHR});
+            break;
+
         // Blanks
         } else if (isblank(*ptr)) {
             ptr = parse_blank(ptr, tokens);
@@ -314,12 +330,15 @@ int tokenize_str_r(const char *str, vector_token *tokens, const char **last)
             if (!ptr)  {
                 parse_error("Failed to parse atom.\n");
                 ret = TOKENIZE_STR_ERR;
-                break;
+                goto end;
+                //break;
             }
             //fprintf(stderr, "ATOM rest:`%s`\n", ptr);
             *last = ptr;
         }
     }
+
+end:
 
     if (!ptr && !ret) {
         ret = TOKENIZE_STR_DONE;
@@ -366,7 +385,6 @@ void token_print(const token *tok)
         case T_CMT_START: case T_CMT_END:
         case T_UNKNOWN:
         case T_NEWLINE:
-        case T_QUOTE:
             str[0] = tok->chr;
             break;
 

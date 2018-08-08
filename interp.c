@@ -56,11 +56,6 @@ lsp_list *create_ast(vector_token *tokens)
         }                                                           \
         vector_push_lsp_obj_ptr(&below->vec, (lsp_obj *) ptr);      \
     } while (0);
-            //fprintf(stderr,
-            //        "AST: reached end of list outside of list, "
-            //        "pushing to ast directly");
-        //fprintf(stderr, "AST: pushing list!\n");
-        //lsp_obj_print_repr((lsp_obj *) ptr);
 
     for (size_t i = 0; i < tokens->len; i++) {
         const token t = vector_get_token(tokens, i);
@@ -131,7 +126,6 @@ lsp_list *create_ast(vector_token *tokens)
             case T_CMT_CONTENT:
             case T_CMT_END:
             case T_UNKNOWN:
-            case T_QUOTE:
                 // skip
                 break;
         }
@@ -200,37 +194,12 @@ lsp_list *execute_ast(lsp_list *ast)
 lsp_obj *evaluate_list(lsp_list *lst)
 {
     if (lst->vec.len == 0) {
-        // dont even bother
-        return NULL;
+        // dont even bother, return empty list
+        return lsp_obj_new(OBJ_LIST);
     }
 
     lsp_obj *front = vector_get_lsp_obj_ptr(&lst->vec, 0);
     assert(front);
-
-    //// evaluate all lists in the rest of the list
-    //// before passing them to the function.
-    //lsp_list evl_lst;
-    //assert(!lsp_obj_init((lsp_obj *) &evl_lst, OBJ_LIST));
-
-    //for (size_t i = 0; i < lst->vec.len; i++) {
-    //    lsp_obj *o = vector_get_lsp_obj_ptr(&lst->vec, i);
-    //    assert(o);
-
-    //    if (o->type == OBJ_LIST) {
-    //        //fprintf(stdout, "Evaluating: ");
-    //        //lsp_obj_print_repr(o);
-    //        lsp_obj *evaled_o = evaluate_list((lsp_list *) o);
-    //        // might evaluate to NULL
-    //        if (evaled_o) {
-    //            //assert(evaled_o);
-    //            vector_push_lsp_obj_ptr(&evl_lst.vec, evaled_o);
-    //        }
-    //    } else {
-    //        lsp_obj *cloned = lsp_obj_clone((lsp_obj *) o);
-    //        assert(cloned);
-    //        vector_push_lsp_obj_ptr(&evl_lst.vec, cloned);
-    //    }
-    //}
 
     lsp_obj *ret = NULL;
 
@@ -252,9 +221,6 @@ lsp_obj *evaluate_list(lsp_list *lst)
         // was not a function call, resolve to itself
         ret = lsp_obj_clone((lsp_obj *) lst);
     }
-
-    // destroy the evaluated list
-    //assert(!lsp_obj_destroy((lsp_obj *) &evl_lst));
 
     return ret;
 }
