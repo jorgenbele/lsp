@@ -138,13 +138,13 @@ static int repl_start(bool print_ast, bool print_tokens, bool print_time)
     char *s = NULL;
     size_t ss = 0;
 
+    assert(!interp_init());
     while (!repl_read_next(stdin, &s, &ss, &tokens, true)) {
         if (!print_tokens || print_ast) {
-            //START_TIME_TAKING_BLOCK(print_time)
-            assert(!interp_init());
+            START_TIME_TAKING_BLOCK(print_time)
             build_and_execute_ast(&tokens, print_ast, true);
-            //END_TIME_TAKING_BLOCK(print_time)
-            assert(!interp_destroy());
+            END_TIME_TAKING_BLOCK(print_time)
+            lsp_obj_pool_print_stats();
         }
 
         for (size_t i = 0; i < tokens.len; i++) {
@@ -156,6 +156,7 @@ static int repl_start(bool print_ast, bool print_tokens, bool print_time)
         }
         tokens.len = 0;
     }
+    assert(!interp_destroy());
 
     // cleanup
     free(s);
@@ -181,7 +182,7 @@ static int execute_file(FILE *fp, bool print_ast, bool print_tokens,
     char *s = NULL;
     size_t ss = 0;
 
-        assert(!interp_init());
+    assert(!interp_init());
     while (!repl_read_next(fp, &s, &ss, &tokens, false)) {
         if (print_tokens) {
             for (size_t i = 0; i < tokens.len; i++) {
@@ -276,7 +277,7 @@ int main(int argc, const char *argv[])
         }
     }
 
+    lsp_obj_pool_print_stats();
     lsp_obj_pool_destroy();
-    //assert(!interp_destroy());
     return ret;
 }

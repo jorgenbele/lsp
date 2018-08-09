@@ -23,7 +23,7 @@ DEF_VECTOR_HEADER(interp_state, interp_state)
 // Holds information which needs to be stored
 // between calls to ast_execute.
 struct interp_ctx {
-    lsp_list symbols; // global symbols (set by defvar, defun, etc...)
+    lsp_list *symbols; // global symbols (set by defvar, defun, etc...)
     size_t n_obj_heap_new;
     size_t n_obj_destroy;
     size_t n_obj_eval;

@@ -6,7 +6,8 @@
 
 void *xmalloc(size_t n)
 {
-    void *ns = malloc(n);
+    //void *ns = xcalloc(1, n); // ... dont use malloc
+    void *ns = malloc(n); // ... dont use malloc
     if (!ns) {
         fprintf(stderr, "xmalloc: Fatal, malloc failed!\n");
         exit(1);
@@ -16,7 +17,7 @@ void *xmalloc(size_t n)
 
 void *xrealloc(void *s, size_t n)
 {
-    fprintf(stderr, "** xrealloc %p **\n", s);
+    //fprintf(stderr, "** xrealloc %p **\n", s);
     void *ns = realloc(s, n);
     if (!ns) {
         fprintf(stderr, "xrealloc: Fatal, realloc failed!\n");
@@ -37,7 +38,7 @@ void *xcalloc(size_t nmembs, size_t n)
 
 char *xstrdupn(const char *s, size_t n)
 {
-    char *ns = calloc(1, n + 1);
+    char *ns = xcalloc(1, n + 1);
     if (!ns) {
         fprintf(stderr, "xstrdupn: Fatal, calloc failed!\n");
         exit(1);

@@ -232,7 +232,8 @@ lsp_obj *builtin_quote(lsp_list *argl)
 
 lsp_obj *builtin_repr(lsp_list *argl)
 {
-    lsp_str *lstr = xcalloc(1, sizeof (*lstr));
+    //lsp_str *lstr = xcalloc(1, sizeof (*lstr));
+    lsp_str *lstr = (lsp_str *) lsp_obj_pool_take_obj();
     lsp_str_init(lstr);
 
     char *buf = NULL;

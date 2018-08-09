@@ -46,6 +46,7 @@ int interp_destroy()
     fprintf(stderr, "%lu obj heap allocs, %lu obj destroys, %lu evals\n",
             global_interp_ctx.n_obj_heap_new, global_interp_ctx.n_obj_destroy,
             global_interp_ctx.n_obj_eval);
+    lsp_obj_pool_print_stats();
     return interp_ctx_destroy(&global_interp_ctx);
 }
 
@@ -191,7 +192,9 @@ lsp_list *ast_build(vector_token *tokens)
 int interp_ctx_init(interp_ctx *ctx)
 {
     memset(ctx, 0, sizeof (*ctx));
-    assert(!lsp_obj_init((lsp_obj *) &ctx->symbols, OBJ_LIST));
+    //assert(!lsp_obj_init((lsp_obj *) &ctx->symbols, OBJ_LIST));
+    ctx->symbols = (lsp_list *) lsp_obj_pool_take_obj();
+    assert(ctx->symbols);
     assert(!clock_gettime(CLOCK_MONOTONIC, &ctx->start));
     return 0;
 }
@@ -199,6 +202,8 @@ int interp_ctx_init(interp_ctx *ctx)
 int interp_ctx_destroy(interp_ctx *ctx)
 {
     assert(!lsp_obj_destroy((lsp_obj *) &ctx->symbols));
+    lsp_obj_pool_release_obj((lsp_obj *) ctx->symbols);
+    //free(ctx->symbols);
     return 0;
 }
 
@@ -252,12 +257,12 @@ lsp_list *ast_execute(lsp_list *ast)
 static int set_symbol(lsp_symbol *symb, bool update, bool ignore_existing)
 {
     // make sure it does not already exist
-    size_t len = lsp_list_len(&global_interp_ctx.symbols);
+    size_t len = lsp_list_len(global_interp_ctx.symbols);
     for (size_t i = 0; i < len; i++) {
         //const lsp_obj *e_obj = lsp_list_get(&global_interp_ctx.symbols, i);
         // unsafe
         lsp_obj *e_obj = vector_get_lsp_obj_ptr(
-            &global_interp_ctx.symbols.vec, i
+            &global_interp_ctx.symbols->vec, i
         );
         assert(e_obj);
         assert(e_obj->type == OBJ_SYMBOL);
@@ -281,7 +286,7 @@ static int set_symbol(lsp_symbol *symb, bool update, bool ignore_existing)
                 assert(!lsp_obj_destroy(e_obj));
                 //free(e_obj);
                 assert(!lsp_obj_pool_release_obj(e_obj));
-                return vector_set_lsp_obj_ptr(&global_interp_ctx.symbols.vec,
+                return vector_set_lsp_obj_ptr(&global_interp_ctx.symbols->vec,
                                               (lsp_obj *) symb, i);
             }
         }
@@ -312,7 +317,7 @@ static int set_symbol(lsp_symbol *symb, bool update, bool ignore_existing)
     //}
 
     // does not already exist, push to list
-    return lsp_list_push(&global_interp_ctx.symbols, (lsp_obj *) symb);
+    return lsp_list_push(global_interp_ctx.symbols, (lsp_obj *) symb);
 }
 
 /*
@@ -367,6 +372,7 @@ static lsp_obj *execute_builtin(lsp_symbol *symb, lsp_list *lst)
         fprintf(stderr, "**evaluating defun**\n");
         return evaluate_defun(lst);
     } else if (!strcmp(symb->symb, "setq")) {
+        fprintf(stderr, "**evaluating setq**\n");
         return evaluate_setq(lst);
     }
     return NULL;

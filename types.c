@@ -182,13 +182,33 @@ typedef struct pool_item pool_item;
 pool_item def_pool_item = {NULL, false};
 DEF_VECTOR(pool_item, pool_item, def_pool_item)
 
-//#define INITIAL_POOL_SIZE 512
+#define INITIAL_POOL_SIZE 0
 
 vector_pool_item pool;
+
+void lsp_obj_pool_print_stats()
+{
+    size_t total = pool.len;
+    size_t free, used;
+    free = used = 0;
+    for (size_t i = 0; i < pool.len; i++) {
+        pool_item *pi_ptr = vector_get_ptr_pool_item(&pool, i);
+        if (!pi_ptr) {
+            break;
+        }
+        if (pi_ptr->used) {
+            used++;
+        } else {
+            free++;
+        }
+    }
+    fprintf(stderr, "** pool: %lu total, %lu free, %lu used\n", total, free, used);
+}
 
 int lsp_obj_pool_init()
 {
     fprintf(stderr, "** initiating pool **\n");
+    memset(&pool, 0, sizeof(pool));
     assert(!vector_init_pool_item(&pool));
 
     //for (size_t i = 0; i < INITIAL_POOL_SIZE; i++) {
@@ -201,10 +221,13 @@ int lsp_obj_pool_init()
 
 int lsp_obj_pool_destroy()
 {
-    fprintf(stderr, "** destroying pool **\n");
+    //fprintf(stderr, "** destroying pool **\n");
     while (pool.len > 0) {
         pool_item pi = vector_pop_pool_item(&pool);
-        lsp_obj_destroy(pi.obj);
+        if (pool.error) {
+            break;
+        }
+        assert(!lsp_obj_destroy(pi.obj));
         free(pi.obj);
     }
 
@@ -212,43 +235,69 @@ int lsp_obj_pool_destroy()
     return 0;
 }
 
+#define USE_OBJ_POOL
+
 // gets a free object from the pool if any,
 // or it allocates a new one.
 // moved the obj from  the free pool to the used
 // pool
 lsp_obj *lsp_obj_pool_take_obj()
 {
-    fprintf(stderr, "** taking obj **\n");
+#ifdef USE_OBJ_POOL
+    //fprintf(stderr, "** taking obj **\n");
     for (size_t i = 0; i < pool.len; i++) {
-        pool_item pi = vector_get_pool_item(&pool, i);
+        pool_item *pi = vector_get_ptr_pool_item(&pool, i);
         assert(!pool.error);
-        if (!pi.used) {
-            fprintf(stderr, "** using existing obj: %p **\n", pi.obj);
-            pi.used = true;
-            return pi.obj;
+        if (!pi->used) {
+            //fprintf(stderr, "** using existing obj: %p, %lu **\n", pi->obj, i);
+            pi->used = true;
+            //print_pool_stats();
+            return pi->obj;
         }
     }
-    lsp_obj *obj = xcalloc(1, MAX_LSP_OBJ_SIZE);
-    fprintf(stderr, "** creating new obj: %p **\n", obj);
+
+    if (pool.len % 1000 == 0) {
+        fprintf(stderr, "** pool len increased to %lu objs **\n", pool.len);
+    }
+    //fprintf(stderr, "** creating new obj **\n");
+    //lsp_obj *obj = xcalloc(1, MAX_LSP_OBJ_SIZE);
+    lsp_obj *obj = calloc(1, MAX_LSP_OBJ_SIZE);
     assert(obj);
+    //fprintf(stderr, "** created new obj: %p **\n", obj);
     assert(!vector_push_pool_item(&pool, (pool_item) {obj, true}));
+    //fprintf(stderr, "** pushed new obj: %p **\n", obj);
+    //print_pool_stats();
     return obj;
+#else
+    return xcalloc(1, MAX_LSP_OBJ_SIZE);
+#endif
 }
 
 // takes a obj retrieved with lsp_obj_pool_take_obj()
 // and releases it into the pool
 int lsp_obj_pool_release_obj(lsp_obj *obj)
 {
-    fprintf(stderr, "** releasing obj: %p **\n", obj);
+#ifdef USE_OBJ_POOL
     for (size_t i = 0; i < pool.len; i++) {
-        pool_item pi = vector_get_pool_item(&pool, i);
-        if (pi.obj == obj) {
-            pi.used = false;
+        pool_item *pi = vector_get_ptr_pool_item(&pool, i);
+        if (pi->obj == obj) {
+            pi->used = false;
+            // clear contents.
+            memset(pi->obj, 0, MAX_LSP_OBJ_SIZE);
+            //print_pool_stats();
+            //fprintf(stderr, "** releasing obj: %p, %lu **\n", pi->obj, i);
             return 0;
         }
     }
+    lsp_obj_pool_print_stats();
+    fprintf(stderr, "Attempting to release: %p (base: %p, end: %p)\n", (void *) obj,
+            (void *) &pool.data, (void *) (((char *)&pool.data[pool.size-1]) + MAX_LSP_OBJ_SIZE));
     assert(!"tried to release unknown object!");
     return 1;
+#else
+    free(obj);
+    return 0;
+#endif
 }
 
 int lsp_obj_destroy(lsp_obj *obj)
@@ -313,7 +362,7 @@ int lsp_obj_destroy(lsp_obj *obj)
 
 lsp_obj *lsp_obj_new_w(lsp_obj_type type, void *data, size_t size)
 {
-    fprintf(stderr, "*** obj new **\n");
+    //fprintf(stderr, "*** obj new **\n");
     global_interp_ctx.n_obj_heap_new++;
 
     size_t obj_size = 0;
@@ -374,9 +423,9 @@ lsp_obj *lsp_symbol_eval(const lsp_symbol *symb)
 {
 // check if it exists in the symbols list, and if so return
 // (a clone of) the val it contains.
-    size_t len = lsp_list_len(&global_interp_ctx.symbols);
+    size_t len = lsp_list_len(global_interp_ctx.symbols);
     for (size_t i = 0; i < len; i++) {
-        const lsp_obj *e_obj = lsp_list_get(&global_interp_ctx.symbols, i);
+        const lsp_obj *e_obj = lsp_list_get(global_interp_ctx.symbols, i);
         assert(e_obj->type == OBJ_SYMBOL);
         const lsp_symbol *e_symb = (lsp_symbol *) e_obj;
 
@@ -560,6 +609,7 @@ int lsp_str_cat_n(lsp_str *lstr, const char *str, size_t str_len)
         lstr->ptr = xcalloc(1, lstr->size);
     } else if (lstr->size < total_len + 1) {
         lstr->size = total_len + 1;
+        //fprintf(stderr, "** str xrealloc **\n");
         lstr->ptr = xrealloc(lstr->ptr, lstr->size);
     }
     strncat(lstr->ptr, str, str_len);
