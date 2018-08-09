@@ -57,6 +57,97 @@ bool lsp_obj_is_true(lsp_obj *obj)
     return false;
 }
 
+int lsp_obj_cmp(lsp_obj *obj1, lsp_obj *obj2)
+{
+    if (obj1->type != obj2->type) {
+        // if the type is a combination INT and FLOAT
+        // then they are both converted to FLOAT and
+        // f1 - f2 is returned, else -1 is always returned
+        if ((obj1->type == OBJ_INT || obj1->type == OBJ_FLOAT)
+            && (obj2->type == OBJ_INT || obj2->type == OBJ_FLOAT)) {
+            double obj1_flt = 0;
+            if (obj1->type == OBJ_INT) {
+                obj1_flt = (double) obj1->integer;
+            } else {
+                obj1_flt = (double) obj1->flt;
+            }
+            double obj2_flt = 0;
+            if (obj2->type == OBJ_INT) {
+                obj2_flt = (double) obj2->integer;
+            } else {
+                obj2_flt = (double) obj2->flt;
+            }
+            return obj1_flt - obj2_flt;
+        }
+        return -1;
+    }
+
+    switch (obj1->type) {
+        case OBJ_STRING: {
+            // is true if not empty
+            // NOTE size is actually the length of the string.
+            const lsp_str *str1 = (lsp_str*) obj1;
+            const lsp_str *str2 = (lsp_str*) obj2;
+            if (str1->len != str2->len) {
+                return str1->len - str2->len;
+            }
+            return strcmp(str1->ptr, str2->ptr);
+        }
+
+        case OBJ_INT:
+            return obj1->integer - obj2->integer;
+
+        case OBJ_FLOAT:
+            return obj1->flt - obj2->flt;
+
+        case OBJ_SYMBOL: {
+            // use the result of the evaluation of the symbols
+            const lsp_symbol *symb1 = (lsp_symbol *) obj1;
+            const lsp_symbol *symb2 = (lsp_symbol *) obj1;
+            lsp_obj *symb1_eval = lsp_obj_eval(obj1);
+            lsp_obj *symb2_eval = lsp_obj_eval(obj2);
+            int res;
+            if (symb1_eval->type == OBJ_SYMBOL && symb2_eval->type == OBJ_SYMBOL) {
+                res = strcmp(((lsp_symbol *) symb1_eval)->symb,
+                             ((lsp_symbol *) symb2_eval)->symb);
+            } else {
+                // recurse
+                res = lsp_obj_cmp(symb1_eval, symb2_eval);
+            }
+            lsp_obj_pool_release_obj(symb1_eval);
+            lsp_obj_pool_release_obj(symb2_eval);
+            return res;
+        }
+
+        case OBJ_GENERIC:
+            return obj1->ptr == obj2->ptr && obj1->size == obj2->size;
+
+        case OBJ_LIST: {
+            // is 0 if the contents are the same
+            // , otherwise the longest OR the
+            // list where the first element is biggest,
+            // returns -1 or 1 depending on the order of args.
+            lsp_list *lst1 = (lsp_list *) obj1;
+            lsp_list *lst2 = (lsp_list *) obj2;
+            size_t len1 = lsp_list_len(lst1);
+            size_t len2 = lsp_list_len(lst2);
+            if (len1 != len2) {
+                return len1 - len2;
+            }
+
+            for (size_t i = 0; i < len1; i++) {
+                lsp_obj *l1_obj = lsp_list_get(lst1, i);
+                lsp_obj *l2_obj = lsp_list_get(lst2, i);
+                int ret = lsp_obj_cmp(l1_obj, l2_obj);
+                if (ret != 0) {
+                    return ret;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
 // TODO refactor
 lsp_obj *lsp_obj_clone(const lsp_obj *src)
 {
@@ -183,11 +274,14 @@ pool_item def_pool_item = {NULL, false};
 DEF_VECTOR(pool_item, pool_item, def_pool_item)
 
 #define INITIAL_POOL_SIZE 0
+//#define USE_OBJ_POOL
+
 
 vector_pool_item pool;
 
 void lsp_obj_pool_print_stats()
 {
+    #ifdef USE_OBJ_POOL
     size_t total = pool.len;
     size_t free, used;
     free = used = 0;
@@ -203,11 +297,16 @@ void lsp_obj_pool_print_stats()
         }
     }
     fprintf(stderr, "** pool: %lu total, %lu free, %lu used\n", total, free, used);
+    #endif
 }
 
 int lsp_obj_pool_init()
 {
-    fprintf(stderr, "** initiating pool **\n");
+    #ifdef USE_OBJ_POOL
+    fprintf(stderr, "** initiating pool (using pool) **\n");
+    #else
+    fprintf(stderr, "** initiating pool (not using pool) **\n");
+    #endif
     memset(&pool, 0, sizeof(pool));
     assert(!vector_init_pool_item(&pool));
 
@@ -234,8 +333,6 @@ int lsp_obj_pool_destroy()
     assert(!vector_destroy_pool_item(&pool));
     return 0;
 }
-
-#define USE_OBJ_POOL
 
 // gets a free object from the pool if any,
 // or it allocates a new one.

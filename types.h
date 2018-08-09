@@ -80,6 +80,7 @@ int lsp_obj_init_w(lsp_obj *obj, lsp_obj_type type, void *data, size_t size);
 int lsp_obj_init(lsp_obj *obj, lsp_obj_type type);
 int lsp_obj_destroy(lsp_obj *obj);
 bool lsp_obj_is_true(lsp_obj *obj);
+int lsp_obj_cmp(lsp_obj *obj1, lsp_obj *obj2);
 
 lsp_obj *lsp_obj_new_w(lsp_obj_type type, void *data, size_t size);
 lsp_obj *lsp_obj_new(lsp_obj_type type);

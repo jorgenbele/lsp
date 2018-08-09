@@ -36,6 +36,7 @@ static int repl_read_next(FILE *fp, char **buf, size_t *bsize,
         if (last_i >= line_len) {
             if (lists > 0 && interactive) {
                 fprintf(stdout, "> ");
+                fflush(stdout);
             }
             line_len = getline(buf, bsize, fp);
             if (line_len < 0) {

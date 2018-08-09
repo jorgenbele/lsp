@@ -11,6 +11,11 @@
 const builtin builtins[] = {
     {"print", builtin_print},
     {"println", builtin_println},
+    {"eql", builtin_obj_eql},
+    {"cmp", builtin_obj_cmp},
+    {"lt", builtin_obj_lt},
+    {"gt", builtin_obj_gt},
+    {"not", builtin_int_not},
     {"+", builtin_number_sum},
     {"-", builtin_number_minus},
     {"*", builtin_number_mult},
@@ -60,6 +65,79 @@ lsp_obj *builtin_println(lsp_list *argl)
     lsp_obj *obj = builtin_print(argl);
     putchar('\n');
     return obj;
+}
+
+lsp_obj *builtin_int_not(lsp_list *argl)
+{
+    REQUIRES_N_ARGS("not", argl, 1);
+
+    lsp_obj *obj_eval = lsp_list_get_eval(argl, 1);
+    assert(obj_eval);
+    bool not = !lsp_obj_is_true(obj_eval);
+    lsp_obj_pool_release_obj(obj_eval);
+
+    lsp_obj *obj_not = lsp_obj_new(OBJ_INT);
+    assert(obj_not);
+    obj_not->integer = not;
+    return obj_not;
+}
+
+
+lsp_obj *builtin_obj_gt(lsp_list *argl)
+{
+    REQUIRES_ATLEAST_N_ARGS("lt", argl, 2);
+
+    // unsafe
+    lsp_obj *cmp_res = builtin_obj_cmp(argl);
+    assert(cmp_res->type == OBJ_INT);
+    cmp_res->integer = cmp_res->integer > 0;
+    return cmp_res;
+}
+
+lsp_obj *builtin_obj_lt(lsp_list *argl)
+{
+    REQUIRES_ATLEAST_N_ARGS("lt", argl, 2);
+
+    // unsafe
+    lsp_obj *cmp_res = builtin_obj_cmp(argl);
+    assert(cmp_res->type == OBJ_INT);
+    cmp_res->integer = cmp_res->integer < 0;
+    return cmp_res;
+}
+
+lsp_obj *builtin_obj_eql(lsp_list *argl)
+{
+    REQUIRES_ATLEAST_N_ARGS("eql", argl, 2);
+
+    // unsafe
+    lsp_obj *cmp_res = builtin_obj_cmp(argl);
+    assert(cmp_res->type == OBJ_INT);
+    cmp_res->integer = cmp_res->integer == 0;
+    return cmp_res;
+}
+
+
+lsp_obj *builtin_obj_cmp(lsp_list *argl)
+{
+    REQUIRES_ATLEAST_N_ARGS("cmp", argl, 2);
+
+    int cmp = 0;
+
+    lsp_obj *first = lsp_list_get_eval(argl, 1);
+    assert(first);
+
+    size_t argl_len = lsp_list_len(argl);
+    for (size_t i = 2; !cmp && i < argl_len; i++) {
+        lsp_obj *o = lsp_list_get_eval(argl, i);
+        cmp = lsp_obj_cmp(first, o);
+        assert(!lsp_obj_pool_release_obj(o));
+    }
+    assert(!lsp_obj_pool_release_obj(first));
+
+    lsp_obj *res = lsp_obj_new(OBJ_INT);
+    assert(res);
+    res->integer = cmp;
+    return res;
 }
 
 //lsp_obj *builtin_number_sum(vector_lsp_obj_ptr *argv)

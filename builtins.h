@@ -41,6 +41,13 @@ builtin_func_ptr builtin_get_func(const char *name);
 lsp_obj *builtin_print(lsp_list *argl);
 lsp_obj *builtin_println(lsp_list *argl);
 
+lsp_obj *builtin_int_not(lsp_list *argl);
+lsp_obj *builtin_obj_eql(lsp_list *argl);
+lsp_obj *builtin_obj_lt(lsp_list *argl);
+lsp_obj *builtin_obj_gt(lsp_list *argl);
+lsp_obj *builtin_obj_le(lsp_list *argl);
+lsp_obj *builtin_obj_ge(lsp_list *argl);
+lsp_obj *builtin_obj_cmp(lsp_list *argl);
 lsp_obj *builtin_number_sum(lsp_list *argl);
 lsp_obj *builtin_number_minus(lsp_list *argl);
 lsp_obj *builtin_number_mult(lsp_list *argl);
