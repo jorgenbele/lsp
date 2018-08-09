@@ -16,7 +16,7 @@ const char *obj_type_str_short[] = {
 };
 
 // Functions for working with the lsp_obj_ptr list
-DEF_VECTOR_FUNCS(lsp_obj_ptr, lsp_obj_ptr, NULL);
+DEF_VECTOR_FUNCS(lsp_obj_ptr, lsp_obj_ptr, NULL)
 
 /*
  * Object
@@ -54,6 +54,7 @@ bool lsp_obj_is_true(lsp_obj *obj)
             return lst->vec.len > 0;
         }
     }
+    return false;
 }
 
 // TODO refactor
@@ -171,11 +172,89 @@ int lsp_obj_init(lsp_obj *obj, lsp_obj_type type)
     return lsp_obj_init_w(obj, type, NULL, 0);
 }
 
+// pre-allocate objects (and reuse )
+struct pool_item {
+    lsp_obj *obj;
+    bool used;
+};
+typedef struct pool_item pool_item;
+
+pool_item def_pool_item = {NULL, false};
+DEF_VECTOR(pool_item, pool_item, def_pool_item)
+
+//#define INITIAL_POOL_SIZE 512
+
+vector_pool_item pool;
+
+int lsp_obj_pool_init()
+{
+    fprintf(stderr, "** initiating pool **\n");
+    assert(!vector_init_pool_item(&pool));
+
+    //for (size_t i = 0; i < INITIAL_POOL_SIZE; i++) {
+    //    lsp_obj *obj = xcalloc(1, MAX_LSP_OBJ_SIZE);
+    //    assert(obj);
+    //    vector_push_pool_item(&pool, (pool_item) {obj, false});
+    //}
+    return 0;
+}
+
+int lsp_obj_pool_destroy()
+{
+    fprintf(stderr, "** destroying pool **\n");
+    while (pool.len > 0) {
+        pool_item pi = vector_pop_pool_item(&pool);
+        lsp_obj_destroy(pi.obj);
+        free(pi.obj);
+    }
+
+    assert(!vector_destroy_pool_item(&pool));
+    return 0;
+}
+
+// gets a free object from the pool if any,
+// or it allocates a new one.
+// moved the obj from  the free pool to the used
+// pool
+lsp_obj *lsp_obj_pool_take_obj()
+{
+    fprintf(stderr, "** taking obj **\n");
+    for (size_t i = 0; i < pool.len; i++) {
+        pool_item pi = vector_get_pool_item(&pool, i);
+        assert(!pool.error);
+        if (!pi.used) {
+            fprintf(stderr, "** using existing obj: %p **\n", pi.obj);
+            pi.used = true;
+            return pi.obj;
+        }
+    }
+    lsp_obj *obj = xcalloc(1, MAX_LSP_OBJ_SIZE);
+    fprintf(stderr, "** creating new obj: %p **\n", obj);
+    assert(obj);
+    assert(!vector_push_pool_item(&pool, (pool_item) {obj, true}));
+    return obj;
+}
+
+// takes a obj retrieved with lsp_obj_pool_take_obj()
+// and releases it into the pool
+int lsp_obj_pool_release_obj(lsp_obj *obj)
+{
+    fprintf(stderr, "** releasing obj: %p **\n", obj);
+    for (size_t i = 0; i < pool.len; i++) {
+        pool_item pi = vector_get_pool_item(&pool, i);
+        if (pi.obj == obj) {
+            pi.used = false;
+            return 0;
+        }
+    }
+    assert(!"tried to release unknown object!");
+    return 1;
+}
+
 int lsp_obj_destroy(lsp_obj *obj)
 {
-    static size_t destroyed = 0;
-    destroyed++;
-    //fprintf(stderr, "lsp_obj_destroyed: %lu\n", destroyed);
+    global_interp_ctx.n_obj_destroy++;
+
     switch (obj->type) {
         case OBJ_INT:
         case OBJ_FLOAT:
@@ -200,7 +279,8 @@ int lsp_obj_destroy(lsp_obj *obj)
                 }
                 // NOTE: Recursive call
                 assert(!lsp_obj_destroy(obj));
-                free(obj);
+                //free(obj);
+                lsp_obj_pool_release_obj(obj);
             }
             assert(!vector_destroy_lsp_obj_ptr(&lst->vec));
             break;
@@ -213,7 +293,8 @@ int lsp_obj_destroy(lsp_obj *obj)
             symb->symb = NULL;
             if (symb->val) {
                 assert(!lsp_obj_destroy(symb->val));
-                free(symb->val);
+                //free(symb->val);
+                lsp_obj_pool_release_obj(symb->val);
                 symb->val = NULL;
             }
             break;
@@ -229,8 +310,12 @@ int lsp_obj_destroy(lsp_obj *obj)
     return 0;
 }
 
+
 lsp_obj *lsp_obj_new_w(lsp_obj_type type, void *data, size_t size)
 {
+    fprintf(stderr, "*** obj new **\n");
+    global_interp_ctx.n_obj_heap_new++;
+
     size_t obj_size = 0;
     switch (type) {
         case OBJ_STRING:
@@ -258,9 +343,12 @@ lsp_obj *lsp_obj_new_w(lsp_obj_type type, void *data, size_t size)
             break;
     }
     assert(obj_size > 0);
-    lsp_obj *obj = xcalloc(1, obj_size);
+    lsp_obj *obj = lsp_obj_pool_take_obj();
     assert(obj);
     assert(!lsp_obj_init_w(obj, type, data, size));
+    //lsp_obj *obj = xcalloc(1, obj_size);
+    //assert(obj);
+    //assert(!lsp_obj_init_w(obj, type, data, size));
     return obj;
 }
 
@@ -271,6 +359,8 @@ lsp_obj *lsp_obj_new(lsp_obj_type type)
 
 lsp_obj *lsp_obj_eval(lsp_obj *obj)
 {
+    global_interp_ctx.n_obj_eval++;
+
     if (obj->type == OBJ_LIST) {
         return list_evaluate((lsp_list *) obj);
     } else if (obj->type == OBJ_SYMBOL) {

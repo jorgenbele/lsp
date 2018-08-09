@@ -1,8 +1,11 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <stdint.h>
 #include <time.h>
+#include <stddef.h>
+#include <unistd.h>
 
 #include "vector.h"
 #include "interp.h"
@@ -27,6 +30,7 @@ static int repl_read_next(FILE *fp, char **buf, size_t *bsize,
 
     if (interactive) {
         fprintf(stdout, "REPL: ");
+        fflush(stdout);
     }
     while (!done) {
         if (last_i >= line_len) {
@@ -96,15 +100,17 @@ static void build_and_execute_ast(vector_token *tokens, bool print_ast, bool pri
             if (obj) {
                 lsp_obj_print_repr(obj);
             } else {
-                printf("#<generic %p>\n", obj);
+                printf("#<generic %p>\n", (void *) obj);
             }
         }
     }
 
     lsp_obj_destroy((lsp_obj *) rlst);
-    free(rlst);
+    //free(rlst);
+    lsp_obj_pool_release_obj((lsp_obj *) rlst);
     lsp_obj_destroy((lsp_obj *) ast);
-    free(ast);
+    //free(ast);
+    lsp_obj_pool_release_obj((lsp_obj *) ast);
 }
 
 #define START_TIME_TAKING_BLOCK(enabled)                \
@@ -134,9 +140,11 @@ static int repl_start(bool print_ast, bool print_tokens, bool print_time)
 
     while (!repl_read_next(stdin, &s, &ss, &tokens, true)) {
         if (!print_tokens || print_ast) {
-            START_TIME_TAKING_BLOCK(print_time)
+            //START_TIME_TAKING_BLOCK(print_time)
+            assert(!interp_init());
             build_and_execute_ast(&tokens, print_ast, true);
-            END_TIME_TAKING_BLOCK(print_time)
+            //END_TIME_TAKING_BLOCK(print_time)
+            assert(!interp_destroy());
         }
 
         for (size_t i = 0; i < tokens.len; i++) {
@@ -173,6 +181,7 @@ static int execute_file(FILE *fp, bool print_ast, bool print_tokens,
     char *s = NULL;
     size_t ss = 0;
 
+        assert(!interp_init());
     while (!repl_read_next(fp, &s, &ss, &tokens, false)) {
         if (print_tokens) {
             for (size_t i = 0; i < tokens.len; i++) {
@@ -191,6 +200,7 @@ static int execute_file(FILE *fp, bool print_ast, bool print_tokens,
         }
         tokens.len = 0;
     }
+    assert(!interp_destroy());
 
     // cleanup
     free(s);
@@ -209,7 +219,8 @@ static int execute_file(FILE *fp, bool print_ast, bool print_tokens,
 
 int main(int argc, const char *argv[])
 {
-    assert(!interp_init());
+    lsp_obj_pool_init();
+    //assert(!interp_init());
 
     bool use_repl = false;
     bool print_ast = false;
@@ -265,6 +276,7 @@ int main(int argc, const char *argv[])
         }
     }
 
-    assert(!interp_destroy());
+    lsp_obj_pool_destroy();
+    //assert(!interp_destroy());
     return ret;
 }

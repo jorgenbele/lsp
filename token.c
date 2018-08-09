@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <assert.h>
+#include <unistd.h>
 
 #include "token.h"
 #include "utils.h"
@@ -27,7 +28,7 @@ const char *token_type_str[] = {
 };
 
 //static const struct token default_token = {T_UNKNOWN, 0};
-DEF_VECTOR_FUNCS(token, struct token, ((const struct token) {T_UNKNOWN, 0}));
+DEF_VECTOR_FUNCS(token, struct token, ((const struct token) {T_UNKNOWN, 0}))
 
 
 #if 0
@@ -93,7 +94,7 @@ static const char *parse_blank(const char *str, vector_token *tokens)
     return ptr;
 }
 
-DEF_VECTOR(char, char, 0);
+DEF_VECTOR(char, char, 0)
 
 // takes a string which starts WITHOUT a \" (quote)
 STATIC ssize_t sstr_len(const char *str)
@@ -167,7 +168,7 @@ static const char *parse_string(const char *str, vector_token *tokens)
             switch (*ptr) {
                 case 'a': c = '\a'; break;
                 case 'b': c = '\b'; break;
-                case 'e': c = '\e'; break;
+                //case 'e': c = '\e'; break;
                 case 'f': c = '\f'; break;
                 case 'n': c = '\n'; break;
                 case 'r': c = '\r'; break;
@@ -377,7 +378,7 @@ int tokenize_str(const char *str, vector_token *tokens)
 {
     size_t len = strlen(str);
     size_t last_i = 0;
-    size_t tokens_start = 0;
+    //size_t tokens_start = 0;
     while (true) {
         if (last_i >= len) {
             break;
@@ -388,7 +389,7 @@ int tokenize_str(const char *str, vector_token *tokens)
             break;
         }
         last_i = last - str;
-        tokens_start = tokens->len;
+        //tokens_start = tokens->len;
     }
     return 0;
 }

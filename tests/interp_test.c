@@ -9,6 +9,8 @@
 
 static void assert_repr_equal_(const char *input, const char *expected[], size_t len, bool equal)
 {
+    assert_false(interp_init());
+
     vector_token tokens;
     assert_false(vector_init_token(&tokens));
     assert_false(tokenize_str(input, &tokens));
@@ -33,15 +35,19 @@ static void assert_repr_equal_(const char *input, const char *expected[], size_t
     free(buf);
 
     lsp_obj_destroy((lsp_obj *) ast);
-    free(ast);
+    //free(ast);
+    lsp_obj_pool_release_obj((lsp_obj *) ast);
     lsp_obj_destroy((lsp_obj *) rlst);
-    free(rlst);
+    //free(rlst);
+    lsp_obj_pool_release_obj((lsp_obj *) rlst);
 
     while (tokens.len > 0 && !tokens.error) {
         token token = vector_pop_token(&tokens);
         token_destroy(&token);
     }
     assert_false(vector_destroy_token(&tokens));
+
+    assert_false(interp_destroy());
 }
 
 static void assert_repr_equal(const char *input, const char *expected[], size_t len)

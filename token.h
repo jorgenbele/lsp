@@ -66,7 +66,7 @@ struct token {
 };
 typedef struct token token;
 
-DEF_VECTOR_HEADER(token, struct token);
+DEF_VECTOR_HEADER(token, struct token)
 
 enum {TOKENIZE_STR_ERR=-1, TOKENIZE_STR_OK=0, TOKENIZE_STR_DONE=1};
 

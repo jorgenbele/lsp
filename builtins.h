@@ -25,6 +25,7 @@
 
 
 #define BUILTIN_FUNC_PTR(name) lsp_obj_ptr (*name)(lsp_list *)
+typedef lsp_obj_ptr (*builtin_func_ptr)(lsp_list *);
 
 struct builtin {
     const char *symbol;
@@ -34,7 +35,8 @@ typedef struct builtin builtin;
 
 extern const builtin builtins[];
 
-void *builtin_get_func(const char *name);
+//void *builtin_get_func(const char *name);
+builtin_func_ptr builtin_get_func(const char *name);
 
 lsp_obj *builtin_print(lsp_list *argl);
 lsp_obj *builtin_println(lsp_list *argl);

@@ -1,15 +1,19 @@
+#define _XOPEN_SOURCE 700
+
 #include <stdio.h>
 #include <assert.h>
-
+#include <time.h>
+#include <stddef.h>
 #include "builtins.h"
 #include "interp.h"
 #include "utils.h"
 
 // static functions
-static int set_symbol(lsp_symbol *symb);
+static int set_symbol(lsp_symbol *symb, bool update, bool ignore_existing);
+
 interp_ctx global_interp_ctx;
 
-DEF_VECTOR_FUNCS(interp_state, interp_state, ((interp_state) {NORMAL, 0}));
+DEF_VECTOR_FUNCS(interp_state, interp_state, ((interp_state) {NORMAL, 0}))
 #if 0
 lsp_list default_lsp_list = {
     .type = OBJ_LIST,
@@ -20,7 +24,7 @@ lsp_list default_lsp_list = {
     }
 };
 #endif
-DEF_VECTOR_FUNCS(lsp_list_ptr, lsp_list_ptr, NULL);
+DEF_VECTOR_FUNCS(lsp_list_ptr, lsp_list_ptr, NULL)
 
 
 int interp_init()
@@ -30,7 +34,18 @@ int interp_init()
 
 int interp_destroy()
 {
-    fprintf(stderr, "destroying interp context!\n");
+    struct timespec stop;
+    assert(!clock_gettime(CLOCK_MONOTONIC, &stop));
+    int64_t diff_nsec = stop.tv_nsec - global_interp_ctx.start.tv_nsec;
+    int64_t diff_sec = stop.tv_sec - global_interp_ctx.start.tv_sec;
+    diff_sec += (int64_t) (diff_nsec / 10e8);
+    diff_nsec = diff_nsec % (int64_t) 10e8;
+
+    //fprintf(stderr, "destroying interp context!\n");
+    fprintf(stderr, "finished in %lu s %lu ns\n", diff_sec, diff_nsec);
+    fprintf(stderr, "%lu obj heap allocs, %lu obj destroys, %lu evals\n",
+            global_interp_ctx.n_obj_heap_new, global_interp_ctx.n_obj_destroy,
+            global_interp_ctx.n_obj_eval);
     return interp_ctx_destroy(&global_interp_ctx);
 }
 
@@ -150,12 +165,18 @@ lsp_list *ast_build(vector_token *tokens)
         // Destroy the lst_stack and the ast
         while (lst_stack.len > 0 && !lst_stack.error) {
             lsp_list *l = vector_pop_lsp_list_ptr(&lst_stack);
-            lsp_obj_destroy((lsp_obj *) l);
-            free(l);
+            if (!l) {
+                break;
+            }
+            assert(l);
+            assert(!lsp_obj_destroy((lsp_obj *) l));
+            assert(!lsp_obj_pool_release_obj((lsp_obj *) l));
+            //free(l);
         }
         vector_destroy_lsp_list_ptr(&lst_stack);
         lsp_obj_destroy((lsp_obj *) ast);
-        free(ast);
+        //free(ast);
+        lsp_obj_pool_release_obj((lsp_obj *) ast);
 
         fprintf(stderr, "Runtime error: missing parenthesis?\n");
         return NULL;
@@ -171,8 +192,7 @@ int interp_ctx_init(interp_ctx *ctx)
 {
     memset(ctx, 0, sizeof (*ctx));
     assert(!lsp_obj_init((lsp_obj *) &ctx->symbols, OBJ_LIST));
-
-
+    assert(!clock_gettime(CLOCK_MONOTONIC, &ctx->start));
     return 0;
 }
 
@@ -229,21 +249,69 @@ lsp_list *ast_execute(lsp_list *ast)
     return rlst;
 }
 
-static int set_symbol(lsp_symbol *symb)
+static int set_symbol(lsp_symbol *symb, bool update, bool ignore_existing)
 {
     // make sure it does not already exist
     size_t len = lsp_list_len(&global_interp_ctx.symbols);
     for (size_t i = 0; i < len; i++) {
-        const lsp_obj *e_obj = lsp_list_get(&global_interp_ctx.symbols, i);
+        //const lsp_obj *e_obj = lsp_list_get(&global_interp_ctx.symbols, i);
+        // unsafe
+        lsp_obj *e_obj = vector_get_lsp_obj_ptr(
+            &global_interp_ctx.symbols.vec, i
+        );
+        assert(e_obj);
         assert(e_obj->type == OBJ_SYMBOL);
-        const lsp_symbol *e_symb = (lsp_symbol *) e_obj;
-        if (e_symb->symb_len == symb->symb_len
-            && !strncmp(e_symb->symb, symb->symb, e_symb->symb_len)) {
-            fprintf(stderr, "Runtime error: trying to redefine symbol `%s`.\n",
-                    symb->symb);
-            return 1;
+        lsp_symbol *e_symb = (lsp_symbol *) e_obj;
+        bool exists = (e_symb->symb_len == symb->symb_len
+                       && !strncmp(e_symb->symb, symb->symb, e_symb->symb_len));
+        if (!ignore_existing) {
+            if (exists && !update) {
+                fprintf(stderr, "Runtime error: trying to redefine symbol `%s`.\n",
+                        symb->symb);
+                return 1;
+            } else if (!exists && update) {
+                fprintf(stderr, "Runtime error: trying to update non-existing symbol `%s`.\n",
+                        symb->symb);
+                return 1;
+            }
         }
+
+        if (exists) {
+            if (update) {
+                assert(!lsp_obj_destroy(e_obj));
+                //free(e_obj);
+                assert(!lsp_obj_pool_release_obj(e_obj));
+                return vector_set_lsp_obj_ptr(&global_interp_ctx.symbols.vec,
+                                              (lsp_obj *) symb, i);
+            }
+        }
+
+        //existing = e_symb;
+        //assert(e_obj->type == OBJ_SYMBOL);
+        //lsp_symbol *e_symb = (lsp_symbol *) e_obj; // unsafe
+        //bool exists = (e_symb->symb_len == symb->symb_len
+        //               && !strncmp(e_symb->symb, symb->symb, e_symb->symb_len));
+        //if (!ignore_existing) {
+        //    if (exists && !update) {
+        //        fprintf(stderr, "Runtime error: trying to redefine symbol `%s`.\n",
+        //                symb->symb);
+        //        return 1;
+        //    } else if (!exists && update) {
+        //        fprintf(stderr, "Runtime error: trying to update non-existing symbol `%s`.\n",
+        //                symb->symb);
+        //        return 1;
+        //    }
+        //}
+        //existing = e_symb;
     }
+
+    //if (update && existing) {
+    //    assert(!lsp_obj_destroy((lsp_obj *) existing));
+    //    // modify inplace
+    //    memcpy(existing, symb, sizeof (*symb));
+    //}
+
+    // does not already exist, push to list
     return lsp_list_push(&global_interp_ctx.symbols, (lsp_obj *) symb);
 }
 
@@ -266,23 +334,24 @@ lsp_obj *evaluate_defun(lsp_list *argl)
     return NULL;
 }
 
-// (defvar <name> <value>)
-// creates a new symbol with the name <name> and initial value <value>
-lsp_obj *evaluate_defvar(lsp_list *argl)
+// (setq <name> <value>)
+// sets a previously defined symbol with the
+// name <name> to have the  value <value>
+lsp_obj *evaluate_setq(lsp_list *argl)
 {
-    REQUIRES_N_ARGS("defvar", argl, 2);
+    REQUIRES_N_ARGS("setq", argl, 2);
 
-    // NOTE: both var_eval and value are pushed to the symbol list
-    lsp_obj *var_eval = lsp_list_get_eval(argl, 1); // NOTE: uses eval
-    assert(var_eval);
-    assert(var_eval->type == OBJ_SYMBOL);
+    const lsp_obj *var = lsp_list_get(argl, 1);
+    assert(var);
+    assert(var->type == OBJ_SYMBOL);
 
-    lsp_symbol *symb = (lsp_symbol *) var_eval;
+    lsp_symbol *symb = (lsp_symbol *) lsp_obj_clone(var);
+    assert(symb);
 
     lsp_obj *value = lsp_list_get_eval(argl, 2); // NOTE: uses eval
     assert(value);
     symb->val = value;
-    assert(!set_symbol(symb));
+    assert(!set_symbol(symb, true, true));
     return lsp_obj_new(OBJ_GENERIC);
 }
 
@@ -297,9 +366,8 @@ static lsp_obj *execute_builtin(lsp_symbol *symb, lsp_list *lst)
     if (!strcmp(symb->symb, "defun")) {
         fprintf(stderr, "**evaluating defun**\n");
         return evaluate_defun(lst);
-    } else if (!strcmp(symb->symb, "defvar")) {
-        fprintf(stderr, "**evaluating defvar**\n");
-        return evaluate_defvar(lst);
+    } else if (!strcmp(symb->symb, "setq")) {
+        return evaluate_setq(lst);
     }
     return NULL;
 }
@@ -325,7 +393,8 @@ lsp_obj *list_evaluate(lsp_list *lst)
             // check if builtin
             lsp_obj *rlst = execute_builtin((lsp_symbol *) eval, lst);
             lsp_obj_destroy(eval);
-            free(eval);
+            //free(eval);
+            lsp_obj_pool_release_obj(eval);
             if (rlst) {
                 ret = rlst;
             }

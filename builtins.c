@@ -8,24 +8,6 @@
 #include "types.h"
 #include "interp.h"
 
-#define REQUIRES_N_ARGS(name, argl, n)                                  \
-    if (lsp_list_len(argl) != n + 1) {                                  \
-        fprintf(stderr, "Runtime error: failed to run `%s`, requires %d arguments!\n", name, n); \
-        exit(1);                                                        \
-    }
-
-#define REQUIRES_ATLEAST_N_ARGS(name, argl, n)                          \
-    if (lsp_list_len(argl) < n + 1) {                                   \
-        fprintf(stderr, "Runtime error: failed to run `%s`, requires at least %d arguments!\n", name, n); \
-        exit(1);                                                        \
-    }
-
-#define REQUIRES_MAXIMUM_N_ARGS(name, argl, n)                          \
-    if (lsp_list_len(argl) > n + 1) {                                   \
-        fprintf(stderr, "Runtime error: failed to run `%s`, takes maximum %d arguments!\n", name, n); \
-        exit(1);                                                        \
-    }
-
 const builtin builtins[] = {
     {"print", builtin_print},
     {"println", builtin_println},
@@ -41,7 +23,8 @@ const builtin builtins[] = {
     {NULL, NULL},
 };
 
-void *builtin_get_func(const char *name)
+//void *builtin_get_func(const char *name)
+builtin_func_ptr builtin_get_func(const char *name)
 {
     const builtin *ptr = builtins;
     while (ptr && ptr->symbol && ptr->func) {
@@ -66,7 +49,8 @@ lsp_obj *builtin_print(lsp_list *argl)
             putchar(' ');
         }
         lsp_obj_destroy(obj);
-        free(obj);
+        //free(obj);
+        lsp_obj_pool_release_obj(obj);
     }
     return NULL;
 }
@@ -105,7 +89,8 @@ lsp_obj *builtin_number_sum(lsp_list *argl)
                 break;
         }
         lsp_obj_destroy(ptr);
-        free(ptr);
+        //free(ptr);
+        lsp_obj_pool_release_obj(ptr);
     }
 
     lsp_obj *res = lsp_obj_new(using_float ? OBJ_FLOAT : OBJ_INT);
@@ -148,7 +133,8 @@ lsp_obj *builtin_number_minus(lsp_list *argl)
                 break;
         }
         lsp_obj_destroy(ptr);
-        free(ptr);
+        //free(ptr);
+        lsp_obj_pool_release_obj(ptr);
 
         sign = -1;
     }
@@ -192,10 +178,12 @@ lsp_obj *builtin_number_mult(lsp_list *argl)
                 break;
         }
         lsp_obj_destroy(ptr);
-        free(ptr);
+        //free(ptr);
+        lsp_obj_pool_release_obj(ptr);
     }
 
-    lsp_obj *res = xmalloc(sizeof(*res));
+    lsp_obj *res = lsp_obj_pool_take_obj();
+    //lsp_obj *res = xmalloc(sizeof(*res));
     if (using_float) {
         lsp_obj_init(res, OBJ_FLOAT);
         res->flt = flt_sum * int_sum;
@@ -271,7 +259,8 @@ lsp_obj *builtin_repr(lsp_list *argl)
         }
 
         lsp_obj_destroy(obj);
-        free(obj);
+        //free(obj);
+        lsp_obj_pool_release_obj(obj);
     }
 
     free(buf);
@@ -293,7 +282,8 @@ lsp_obj *builtin_eval(lsp_list *argl)
     lsp_obj *eval_obj = lsp_obj_eval(obj);
     assert(eval_obj);
     lsp_obj_destroy(obj);
-    free(obj);
+    //free(obj);
+    lsp_obj_pool_release_obj(obj);
     return eval_obj;
 }
 
@@ -330,11 +320,13 @@ lsp_obj *builtin_repeat(lsp_list *argl)
 
     if (obj_n->integer == 0) {
         lsp_obj_destroy(obj);
-        free(obj);
+        //free(obj);
+        lsp_obj_pool_release_obj(obj);
     }
 
     lsp_obj_destroy(obj_n);
-    free(obj_n);
+    //free(obj_n);
+    lsp_obj_pool_release_obj(obj_n);
 
     //fprintf(stderr, "list:\n");
     //lsp_obj_print_repr((lsp_obj *) lst);
@@ -349,6 +341,7 @@ lsp_obj *builtin_list_len(lsp_list *argl)
     lsp_obj *int_obj = lsp_obj_new(OBJ_INT);
     int_obj->integer = len;
     lsp_obj_destroy(arg);
-    free(arg);
+    //free(arg);
+    lsp_obj_pool_release_obj(arg);
     return int_obj;
 }

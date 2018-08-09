@@ -15,7 +15,7 @@ enum {ERR_VECTOR_EMPTY=1,ERR_VECTOR_TOO_SHORT,ERR_VECTOR_INIT};
         size_t allocs;                          \
         type *data;                             \
     };                                          \
-    typedef struct vector_##name vector_##name
+    typedef struct vector_##name vector_##name;
 
 #define DEF_VECTOR_INIT(name, type)                 \
     int vector_init_##name(struct vector_##name *v) \
@@ -107,6 +107,17 @@ enum {ERR_VECTOR_EMPTY=1,ERR_VECTOR_TOO_SHORT,ERR_VECTOR_INIT};
         return &v->data[v->len-1];                          \
     }
 
+#define DEF_VECTOR_SET(name, type, def)                                 \
+    int vector_set_##name(struct vector_##name *v, type t, size_t i)    \
+    {                                                                   \
+        if (i + 1 > v->len) {                                           \
+            v->error = ERR_VECTOR_EMPTY;                                \
+            return 1;                                                   \
+        }                                                               \
+        v->data[i] = t;                                                 \
+        return 0;                                                       \
+    }
+
 #define DEF_VECTOR_GET(name, type, def)                         \
     type vector_get_##name(struct vector_##name *v, size_t i)   \
     {                                                           \
@@ -153,29 +164,31 @@ enum {ERR_VECTOR_EMPTY=1,ERR_VECTOR_TOO_SHORT,ERR_VECTOR_INIT};
     type vector_pop_##name(struct vector_##name *v);                    \
     type vector_peek_##name(struct vector_##name *v);                   \
     type *vector_peek_ptr_##name(struct vector_##name *v);              \
+    int vector_set_##name(struct vector_##name *v, type t, size_t i);   \
     type vector_get_##name(struct vector_##name *v, size_t i);          \
     type *vector_get_ptr_##name(struct vector_##name *v, size_t i);     \
-    struct vector_##name vector_after_##name(struct vector_##name *v, size_t i)
+    struct vector_##name vector_after_##name(struct vector_##name *v, size_t i);
 
 #define DEF_VECTOR_HEADER(name, type)           \
-    DEF_VECTOR_STRUCT(name, type);              \
-    DEF_VECTOR_PROTOTYPES(name, type)
+    DEF_VECTOR_STRUCT(name, type)               \
+        DEF_VECTOR_PROTOTYPES(name, type)
 
 #define DEF_VECTOR_FUNCS(name, type, def)       \
-    DEF_VECTOR_INIT(name, type);                \
-    DEF_VECTOR_INIT_W(name, type);              \
-    DEF_VECTOR_DESTROY(name, type);             \
-    DEF_VECTOR_EXTEND(name, type);              \
-    DEF_VECTOR_PUSH(name, type);                \
-    DEF_VECTOR_POP(name, type, def);            \
-    DEF_VECTOR_PEEK(name, type, def);           \
-    DEF_VECTOR_PEEK_PTR(name, type, def);       \
-    DEF_VECTOR_GET(name, type, def);            \
-    DEF_VECTOR_GET_PTR(name, type, def);        \
-    DEF_VECTOR_AFTER(name, type, def)
+    DEF_VECTOR_INIT(name, type)                 \
+        DEF_VECTOR_INIT_W(name, type)           \
+        DEF_VECTOR_DESTROY(name, type)          \
+        DEF_VECTOR_EXTEND(name, type)           \
+        DEF_VECTOR_PUSH(name, type)             \
+        DEF_VECTOR_POP(name, type, def)         \
+        DEF_VECTOR_PEEK(name, type, def)        \
+        DEF_VECTOR_PEEK_PTR(name, type, def)    \
+        DEF_VECTOR_SET(name, type, def)         \
+        DEF_VECTOR_GET(name, type, def)         \
+        DEF_VECTOR_GET_PTR(name, type, def)     \
+        DEF_VECTOR_AFTER(name, type, def)
 
 #define DEF_VECTOR(name, type, def)             \
-    DEF_VECTOR_HEADER(name, type);              \
+    DEF_VECTOR_HEADER(name, type)               \
     DEF_VECTOR_FUNCS(name, type, def)
 
 

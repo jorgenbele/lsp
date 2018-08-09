@@ -50,7 +50,7 @@ typedef struct lsp_obj lsp_obj;
 // Internal representation of a list is a vector
 // of pointers to objects with type vector_lsp_obj_ptr.
 typedef lsp_obj* lsp_obj_ptr;
-DEF_VECTOR_HEADER(lsp_obj_ptr, lsp_obj_ptr);
+DEF_VECTOR_HEADER(lsp_obj_ptr, lsp_obj_ptr)
 
 struct lsp_list {
     LSP_OBJ_STRUCT;
@@ -72,6 +72,9 @@ struct lsp_symbol {
 };
 typedef struct lsp_symbol lsp_symbol;
 
+// store the largest size
+#define MAX_LSP_OBJ_SIZE sizeof(lsp_symbol)
+
 int lsp_obj_init_w(lsp_obj *obj, lsp_obj_type type, void *data, size_t size);
 int lsp_obj_init(lsp_obj *obj, lsp_obj_type type);
 int lsp_obj_destroy(lsp_obj *obj);
@@ -85,6 +88,11 @@ int lsp_obj_print(lsp_obj *obj);
 int lsp_obj_print_repr(lsp_obj *obj);
 lsp_str *lsp_obj_repr(lsp_obj *obj);
 int lsp_obj_repr_str(lsp_obj *obj, char **out, size_t *size);
+
+int lsp_obj_pool_init();
+int lsp_obj_pool_destroy();
+lsp_obj *lsp_obj_pool_take_obj();
+int lsp_obj_pool_release_obj(lsp_obj *obj);
 
 int lsp_str_init_w(lsp_str *str, const void *data, size_t size);
 int lsp_str_init(lsp_str *str);

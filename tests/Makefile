@@ -1,6 +1,8 @@
 PKG_LIBS = cmocka
 LIBS := $(LIBS) `pkg-config --libs $(PKG_LIBS)`
-CFLAGS = -g
+#CFLAGS = -g
+CC = musl-clang
+CFLAGS := $(CFLAGS) -O3 -Wall -Wpedantic -std=c17 -fPIC
 
 .PHONY: all clean install vector_test token_test runall
 

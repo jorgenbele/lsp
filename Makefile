@@ -8,11 +8,17 @@
 #
 
 # define the C compiler to use
-CC=clang
+CC = gcc
+#CC=clang
+#CC = musl-clang
+#CC = musl-gcc
+#CC = clang
 
 # define any compile-time flags
-CFLAGS := $(CFLAGS) -g -Og -Wall -Werror
-#CFLAGS := $(CFLAGS) -O3 -Wall -Werror
+#CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic #-std=c17 #-fPIC
+#CFLAGS := $(CFLAGS) -O3 -Wall -Wpedantic -std=c17 -fPIC
+#CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic # -std=c17 -fPIC
+CFLAGS := $(CFLAGS) -g -Wall -Wpedantic
 LIBS :=
 SRCS = lsp.c token.c builtins.c interp.c types.c utils.c
 OBJS = $(SRCS:.c=.o)
@@ -34,4 +40,3 @@ install: $(EXEC)
 
 clean:
 	$(RM) *.o *~ $(EXEC)
-	$(RM) modules/*.o *~

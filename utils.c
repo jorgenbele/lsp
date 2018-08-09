@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdarg.h>
+#include <unistd.h>
 
 #include "utils.h"
 
@@ -15,6 +16,7 @@ void *xmalloc(size_t n)
 
 void *xrealloc(void *s, size_t n)
 {
+    fprintf(stderr, "** xrealloc %p **\n", s);
     void *ns = realloc(s, n);
     if (!ns) {
         fprintf(stderr, "xrealloc: Fatal, realloc failed!\n");
