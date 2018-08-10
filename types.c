@@ -534,7 +534,7 @@ lsp_obj *lsp_symbol_eval(const lsp_symbol *symb)
     size_t symbols_stack_len = global_interp_ctx.symbols_stack.len;
     size_t symbols_stack_i = symbols_stack_len;
     while (symbols_stack_i-- > 0) {
-        fprintf(stderr, "** checking stack i: %lu **\n", symbols_stack_i);
+        //fprintf(stderr, "** checking stack i: %lu **\n", symbols_stack_i);
         //lsp_list *symbols = vector_peek_lsp_list_ptr(&global_interp_ctx.symbols_stack);
         lsp_list *symbols = vector_get_lsp_list_ptr(&global_interp_ctx.symbols_stack, symbols_stack_i);
         //symbols_stack_i--;
@@ -567,22 +567,22 @@ lsp_obj *lsp_symbol_eval(const lsp_symbol *symb)
                     //lsp_obj_print_repr((lsp_obj *) e_symb);
                     lsp_obj *clone = lsp_obj_clone((lsp_obj *) e_symb);
                     assert(clone);
-                    fprintf(stderr, "** success: returning: ");
-                    lsp_obj_print_repr(clone);
+                    //fprintf(stderr, "** success: returning: ");
+                    //lsp_obj_print_repr(clone);
                     return clone;
 
                 } else if (e_symb->val->type == OBJ_SYMBOL) {
                     // recurse until no symbol is found
                     // or it is itself
-                    fprintf(stderr, "** eval symb recursing function **\n");
+                    //fprintf(stderr, "** eval symb recursing function **\n");
                     return lsp_symbol_eval(e_symb);
                 }
-                fprintf(stderr, "** executing cloned val **\n");
+                //fprintf(stderr, "** executing cloned val **\n");
                 return lsp_obj_clone(e_symb->val);
             }
         }
     }
-    fprintf(stderr, "** evaluating to self **\n");
+    //fprintf(stderr, "** evaluating to self **\n");
     return lsp_obj_clone((lsp_obj *) symb); // evaluates to itself
 }
 
