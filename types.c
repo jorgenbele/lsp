@@ -691,6 +691,17 @@ int lsp_obj_print_repr(lsp_obj *obj)
 
 int lsp_obj_print(lsp_obj *obj)
 {
+    char *buf = NULL;
+    size_t buf_s = 0;
+    if (repr_(obj, &buf, &buf_s, false)) {
+        free(buf);
+        return 1;
+    }
+
+    puts(buf);
+    free(buf);
+    return 0;
+#if 0
     switch (obj->type) {
         case OBJ_STRING:
             printf("%s", obj->ptr);
@@ -730,6 +741,7 @@ int lsp_obj_print(lsp_obj *obj)
             break;
     }
     return 0;
+#endif
 }
 
 /*
