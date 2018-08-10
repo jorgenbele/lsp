@@ -363,7 +363,6 @@ int tokenize_str_r(const char *str, vector_token *tokens, const char **last)
         }
     }
 
-end:
     if (!ptr && !ret) {
         ret = TOKENIZE_STR_DONE;
     } else if (!*ptr) {

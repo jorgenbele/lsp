@@ -167,7 +167,6 @@ lsp_obj *builtin_number_sum(lsp_list *argl)
                 break;
         }
         lsp_obj_destroy(ptr);
-        //free(ptr);
         lsp_obj_pool_release_obj(ptr);
     }
 
@@ -211,7 +210,6 @@ lsp_obj *builtin_number_minus(lsp_list *argl)
                 break;
         }
         lsp_obj_destroy(ptr);
-        //free(ptr);
         lsp_obj_pool_release_obj(ptr);
 
         sign = -1;
@@ -238,7 +236,6 @@ lsp_obj *builtin_number_mult(lsp_list *argl)
     size_t len = lsp_list_len(argl);
     for (size_t i = 1; i < len; i++) {
         lsp_obj *ptr = lsp_list_get_eval(argl, i);
-        //const lsp_obj *ptr = vector_get_lsp_obj_ptr(argv, i);
         assert(!lsp_list_error(argl));
         switch (ptr->type) {
             case OBJ_INT:
@@ -256,12 +253,10 @@ lsp_obj *builtin_number_mult(lsp_list *argl)
                 break;
         }
         lsp_obj_destroy(ptr);
-        //free(ptr);
         lsp_obj_pool_release_obj(ptr);
     }
 
     lsp_obj *res = lsp_obj_pool_take_obj();
-    //lsp_obj *res = xmalloc(sizeof(*res));
     if (using_float) {
         lsp_obj_init(res, OBJ_FLOAT);
         res->flt = flt_sum * int_sum;
@@ -288,14 +283,12 @@ lsp_obj *builtin_if(lsp_list *argl)
     }
     if (!to_evaluate) {
         // empty
-        return lsp_obj_new(OBJ_LIST);
+        return lsp_obj_new(OBJ_GENERIC);
     }
 
     lsp_obj *evaluated = lsp_obj_eval(to_evaluate);
     return evaluated;
 }
-
-
 
 // (quote <obj>) => <obj>
 lsp_obj *builtin_quote(lsp_list *argl)
@@ -310,7 +303,6 @@ lsp_obj *builtin_quote(lsp_list *argl)
 
 lsp_obj *builtin_repr(lsp_list *argl)
 {
-    //lsp_str *lstr = xcalloc(1, sizeof (*lstr));
     lsp_str *lstr = (lsp_str *) lsp_obj_pool_take_obj();
     lsp_str_init(lstr);
 
@@ -327,7 +319,6 @@ lsp_obj *builtin_repr(lsp_list *argl)
             lsp_str_destroy(lstr);
             fprintf(stderr, "Runtime error: failed to run `repr`!\n");
             exit(1);
-            //return NULL;
         }
 
         assert(!lsp_str_cat_n(lstr, buf, strlen(buf)));
@@ -338,7 +329,6 @@ lsp_obj *builtin_repr(lsp_list *argl)
         }
 
         lsp_obj_destroy(obj);
-        //free(obj);
         lsp_obj_pool_release_obj(obj);
     }
 
@@ -361,7 +351,6 @@ lsp_obj *builtin_eval(lsp_list *argl)
     lsp_obj *eval_obj = lsp_obj_eval(obj);
     assert(eval_obj);
     lsp_obj_destroy(obj);
-    //free(obj);
     lsp_obj_pool_release_obj(obj);
     return eval_obj;
 }
@@ -371,7 +360,6 @@ lsp_obj *builtin_eval(lsp_list *argl)
 // example: (repeat 3 (1)) = ((1) (1) (1))
 // example: (repeat 1 1) = (1)
 lsp_obj *builtin_repeat(lsp_list *argl)
-//lsp_obj *builtin_repeat(vector_lsp_obj_ptr *argv)
 {
     REQUIRES_ATLEAST_N_ARGS("repeat", argl, 2);
     REQUIRES_MAXIMUM_N_ARGS("repeat", argl, 2);
@@ -399,28 +387,122 @@ lsp_obj *builtin_repeat(lsp_list *argl)
 
     if (obj_n->integer == 0) {
         lsp_obj_destroy(obj);
-        //free(obj);
         lsp_obj_pool_release_obj(obj);
     }
 
     lsp_obj_destroy(obj_n);
-    //free(obj_n);
     lsp_obj_pool_release_obj(obj_n);
-
-    //fprintf(stderr, "list:\n");
-    //lsp_obj_print_repr((lsp_obj *) lst);
     return (lsp_obj *) lst;
 }
 
-lsp_obj *builtin_list_len(lsp_list *argl)
+lsp_obj *builtin_len(lsp_list *argl)
 {
+    REQUIRES_N_ARGS("len", argl, 1);
     lsp_obj *arg = lsp_list_get_eval(argl, 1);
     assert(arg && arg->type == OBJ_LIST);
     int64_t len = lsp_list_len((lsp_list *) arg);
     lsp_obj *int_obj = lsp_obj_new(OBJ_INT);
     int_obj->integer = len;
     lsp_obj_destroy(arg);
-    //free(arg);
     lsp_obj_pool_release_obj(arg);
     return int_obj;
+}
+
+// NOTE that this is only for adding to the front
+// of a list, nothing else
+lsp_obj *builtin_cons(lsp_list *argl)
+{
+    REQUIRES_N_ARGS("cons", argl, 2);
+    lsp_obj *obj = lsp_list_get_eval(argl, 1);
+    assert(o    // push new list to the symbols stackbj);
+    lsp_list *lst = (lsp_list *) lsp_list_get_eval(argl, 2);
+    assert(lst && lst->type == OBJ_LIST);
+
+    lsp_list *new_lst = (lsp_list *) lsp_obj_new(OBJ_LIST);
+    assert(new_lst);
+
+    lsp_list_push(new_lst, obj);
+
+    size_t lst_len = lsp_list_len(lst);
+    for (size_t i = 0; i < lst_len; i++) {
+        lsp_obj *o = lsp_list_get(lst, i);
+        assert(o && !lsp_list_error(lst));
+        lsp_list_push(new_lst, o);
+    }
+
+    lsp_obj_destroy(lst);
+    lsp_obj_pool_release_obj(lst);
+
+    return (lsp_obj *) new_lst;
+}
+
+lsp_obj *builtin_car(lsp_list *argl)
+{
+    REQUIRES_N_ARGS("car", argl, 1);
+    lsp_list *lst = (lsp_list *) lsp_list_get_eval(argl, 1);
+    if (!lst || lsp_list_len(lst) == 0) {
+        lsp_obj_destroy((lsp_obj *) lst);
+        lsp_obj_pool_release_obj((lsp_obj *) lst);
+        return lsp_obj_new(OBJ_LIST);
+    }
+    assert(lst && lst->type == OBJ_LIST);
+    lsp_obj *fst = lsp_list_get(lst, 0);
+    assert(fst);
+    lsp_obj *clone = lsp_obj_clone(fst);
+    assert(clone);
+    lsp_obj_destroy((lsp_obj *) lst);
+    lsp_obj_pool_release_obj((lsp_obj *) lst);
+    return clone;
+}
+
+lsp_obj *builtin_cdr(lsp_list *argl)
+{
+    REQUIRES_N_ARGS("cdr", argl, 1);
+    lsp_list *lst = (lsp_list *) lsp_list_get_eval(argl, 1);
+    if (!lst || lsp_list_len(lst) == 0) {
+        lsp_obj_destroy((lsp_obj *) lst);
+        lsp_obj_pool_release_obj((lsp_obj *) lst);
+        return lsp_obj_new(OBJ_LIST);
+    }
+    assert(lst && lst->type && OBJ_LIST);
+    lsp_list *rest = lsp_list_after(lst, 1);
+    lsp_obj_destroy((lsp_obj *) lst);
+    lsp_obj_pool_release_obj((lsp_obj *) lst);
+    return (lsp_obj *) rest;
+}
+
+
+// NOTE: does not support merging of lists
+// assumes left is object, and right is list.
+lsp_obj *builtin_append(lsp_list *argl)
+{
+    REQUIRES_N_ARGS("append", argl, 2);
+    lsp_obj *obj = lsp_list_get_eval(argl, 1);
+    assert(obj);
+    lsp_list *lst = (lsp_list *) lsp_list_get_eval(argl, 2);
+    assert(lst && lst->type == OBJ_LIST);
+    lsp_list_push(lst, (lsp_obj *) obj);
+    return (lsp_obj *) lst;
+}
+
+lsp_obj *builtin_reverse(lsp_list *argl)
+{
+    REQUIRES_N_ARGS("reverse", argl, 1);
+    lsp_list *lst = (lsp_list *) lsp_list_get_eval(argl, 1);
+    assert(lst && lst->type == OBJ_LIST);
+
+    lsp_list *rev = (lsp_list *) lsp_obj_new(OBJ_LIST);
+    assert(rev);
+
+    size_t len = lsp_list_len(lst);
+    for (size_t i = 0; i < len; i++) {
+        // TODO: change to pop
+        //lsp_obj *obj = lsp_list_get(lst, len-i-1);
+        lsp_obj *obj = vector_pop_lsp_obj_ptr(&lst->vec);
+        assert(!lsp_list_push(rev, obj));
+    }
+    lsp_obj_destroy((lsp_obj *) lst);
+    lsp_obj_pool_release_obj((lsp_obj *) lst);
+
+    return (lsp_obj *) rev;
 }

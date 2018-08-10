@@ -106,8 +106,6 @@ int lsp_obj_cmp(lsp_obj *obj1, lsp_obj *obj2)
 
         case OBJ_SYMBOL: {
             // use the result of the evaluation of the symbols
-            const lsp_symbol *symb1 = (lsp_symbol *) obj1;
-            const lsp_symbol *symb2 = (lsp_symbol *) obj1;
             lsp_obj *symb1_eval = lsp_obj_eval(obj1);
             lsp_obj *symb2_eval = lsp_obj_eval(obj2);
             int res;
@@ -127,10 +125,9 @@ int lsp_obj_cmp(lsp_obj *obj1, lsp_obj *obj2)
             return obj1->ptr == obj2->ptr && obj1->size == obj2->size;
 
         case OBJ_LIST: {
-            // is 0 if the contents are the same
-            // , otherwise the longest OR the
-            // list where the first element is biggest,
-            // returns -1 or 1 depending on the order of args.
+            // is 0 if the contents are the same, otherwise the longest OR the
+            // list where the first element is biggest, returns -1 or 1
+            // depending on the order of args.
             lsp_list *lst1 = (lsp_list *) obj1;
             lsp_list *lst2 = (lsp_list *) obj2;
             size_t len1 = lsp_list_len(lst1);
@@ -221,7 +218,6 @@ int lsp_obj_init_w(lsp_obj *obj, lsp_obj_type type, void *data, size_t size)
 {
     static size_t inited = 0;
     inited++;
-    //fprintf(stderr, "lsp_obj_inited: %lu\n", inited);
     switch (type) {
         case OBJ_STRING: {
             // NOTE size is actually the length of the string.
@@ -320,18 +316,11 @@ int lsp_obj_pool_init()
     #endif
     memset(&pool, 0, sizeof(pool));
     assert(!vector_init_pool_item(&pool));
-
-    //for (size_t i = 0; i < INITIAL_POOL_SIZE; i++) {
-    //    lsp_obj *obj = xcalloc(1, MAX_LSP_OBJ_SIZE);
-    //    assert(obj);
-    //    vector_push_pool_item(&pool, (pool_item) {obj, false});
-    //}
     return 0;
 }
 
 int lsp_obj_pool_destroy()
 {
-    //fprintf(stderr, "** destroying pool **\n");
     while (pool.len > 0) {
         pool_item pi = vector_pop_pool_item(&pool);
         if (pool.error) {
@@ -352,14 +341,11 @@ int lsp_obj_pool_destroy()
 lsp_obj *lsp_obj_pool_take_obj()
 {
 #ifdef USE_OBJ_POOL
-    //fprintf(stderr, "** taking obj **\n");
     for (size_t i = 0; i < pool.len; i++) {
         pool_item *pi = vector_get_ptr_pool_item(&pool, i);
         assert(!pool.error);
         if (!pi->used) {
-            //fprintf(stderr, "** using existing obj: %p, %lu **\n", pi->obj, i);
             pi->used = true;
-            //print_pool_stats();
             return pi->obj;
         }
     }
@@ -367,14 +353,9 @@ lsp_obj *lsp_obj_pool_take_obj()
     if (pool.len % 1000 == 0) {
         fprintf(stderr, "** pool len increased to %lu objs **\n", pool.len);
     }
-    //fprintf(stderr, "** creating new obj **\n");
-    //lsp_obj *obj = xcalloc(1, MAX_LSP_OBJ_SIZE);
     lsp_obj *obj = calloc(1, MAX_LSP_OBJ_SIZE);
     assert(obj);
-    //fprintf(stderr, "** created new obj: %p **\n", obj);
     assert(!vector_push_pool_item(&pool, (pool_item) {obj, true}));
-    //fprintf(stderr, "** pushed new obj: %p **\n", obj);
-    //print_pool_stats();
     return obj;
 #else
     return xcalloc(1, MAX_LSP_OBJ_SIZE);
@@ -392,8 +373,6 @@ int lsp_obj_pool_release_obj(lsp_obj *obj)
             pi->used = false;
             // clear contents.
             memset(pi->obj, 0, MAX_LSP_OBJ_SIZE);
-            //print_pool_stats();
-            //fprintf(stderr, "** releasing obj: %p, %lu **\n", pi->obj, i);
             return 0;
         }
     }
@@ -424,10 +403,8 @@ int lsp_obj_destroy(lsp_obj *obj)
             break;
 
         case OBJ_LIST: {
-            // The list can be recursive. Therefore
-            // it it required to destroy all
-            // items of the list
-            // Destroy the vector.
+            // The list can be recursive. Therefore it it required to destroy all
+            // items of the list. Destroy the vector.
             lsp_list *lst = (lsp_list *) obj;
             while (lst->vec.len > 0 && !lst->vec.error) {
                 lsp_obj *obj = vector_pop_lsp_obj_ptr(&lst->vec);
@@ -450,7 +427,6 @@ int lsp_obj_destroy(lsp_obj *obj)
             symb->symb = NULL;
             if (symb->val) {
                 assert(!lsp_obj_destroy(symb->val));
-                //free(symb->val);
                 lsp_obj_pool_release_obj(symb->val);
                 symb->val = NULL;
             }
@@ -462,7 +438,6 @@ int lsp_obj_destroy(lsp_obj *obj)
             free(obj->ptr);
             obj->ptr = NULL;
             break;
-        
     }
     return 0;
 }
@@ -470,7 +445,6 @@ int lsp_obj_destroy(lsp_obj *obj)
 
 lsp_obj *lsp_obj_new_w(lsp_obj_type type, void *data, size_t size)
 {
-    //fprintf(stderr, "*** obj new **\n");
     global_interp_ctx.n_obj_heap_new++;
 
     size_t obj_size = 0;
@@ -534,58 +508,33 @@ lsp_obj *lsp_symbol_eval(const lsp_symbol *symb)
     size_t symbols_stack_len = global_interp_ctx.symbols_stack.len;
     size_t symbols_stack_i = symbols_stack_len;
     while (symbols_stack_i-- > 0) {
-        //fprintf(stderr, "** checking stack i: %lu **\n", symbols_stack_i);
-        //lsp_list *symbols = vector_peek_lsp_list_ptr(&global_interp_ctx.symbols_stack);
         lsp_list *symbols = vector_get_lsp_list_ptr(&global_interp_ctx.symbols_stack, symbols_stack_i);
-        //symbols_stack_i--;
         assert(symbols);
         size_t len = lsp_list_len(symbols);
-        //size_t len = lsp_list_len(global_interp_ctx.symbols);
         for (size_t i = 0; i < len; i++) {
-            //const lsp_obj *e_obj = lsp_list_get(global_interp_ctx.symbols, i);
             const lsp_obj *e_obj = lsp_list_get(symbols, i);
             assert(e_obj->type == OBJ_SYMBOL);
             const lsp_symbol *e_symb = (lsp_symbol *) e_obj;
 
-            //fprintf(stderr, "** eval symb comparing `%s`:%lu and `%s`:%lu\n",
-            //        e_symb->symb, e_symb->symb_len, symb->symb, symb->symb_len);
-
-            //if (e_symb->symb_len == symb->symb_len
-            //&& !strncmp(e_symb->symb, symb->symb, e_symb->symb_len)) {
             int r = strcmp(e_symb->symb, symb->symb);
-            //fprintf(stderr, "strcmp returned: %d\n", r);
             if (!r) {
-                //fprintf(stderr, "** success **\n");
-
                 if (e_symb->func) {
-                    //// the symbol is a function, execute it
-                    //// push the current symbols list to 
-                    //fprintf(stderr, "** eval symb executing function **\n");
-                    //assert(e_symb->val->type == OBJ_LIST);
-                    //// unsafe
-                    //return execute_defun_func((lsp_symbol *) e_symb, (lsp_list *) e_symb->val);
-                    //lsp_obj_print_repr((lsp_obj *) e_symb);
+                    // the symbol is a function so it is needed to clone it,
+                    // not return its ->val in order to preserve all details
                     lsp_obj *clone = lsp_obj_clone((lsp_obj *) e_symb);
                     assert(clone);
-                    //fprintf(stderr, "** success: returning: ");
-                    //lsp_obj_print_repr(clone);
                     return clone;
 
                 } else if (e_symb->val->type == OBJ_SYMBOL) {
-                    // recurse until no symbol is found
-                    // or it is itself
-                    //fprintf(stderr, "** eval symb recursing function **\n");
+                    // recurse until no symbol is found or it is itself
                     return lsp_symbol_eval(e_symb);
                 }
-                //fprintf(stderr, "** executing cloned val **\n");
                 return lsp_obj_clone(e_symb->val);
             }
         }
     }
-    //fprintf(stderr, "** evaluating to self **\n");
     return lsp_obj_clone((lsp_obj *) symb); // evaluates to itself
 }
-
 
 static int repr_(lsp_obj *obj, char **out, size_t *size, bool repr)
 {
@@ -598,7 +547,11 @@ static int repr_(lsp_obj *obj, char **out, size_t *size, bool repr)
     int ret = 0;
     switch (obj->type) {
         case OBJ_STRING:
-            alloc_strcatf(out, size, "\"%s\"", obj->ptr);
+            if (repr) {
+                alloc_strcatf(out, size, "\"%s\"", obj->ptr);
+            } else {
+                alloc_strcatf(out, size, "%s", obj->ptr);
+            }
             break;
 
         case OBJ_INT:
@@ -620,10 +573,6 @@ static int repr_(lsp_obj *obj, char **out, size_t *size, bool repr)
                     repr_(symb->val, out, size, repr);
                 }
                 alloc_strcatf(out, size, ">");
-                //if (((lsp_symbol *)obj)->val) {
-                //    alloc_strcatf(out, size, ":");
-                //    ret = repr_(((lsp_symbol *)obj)->val, out, size, repr);
-                //}
             } else {
                 alloc_strcatf(out, size, "%s", ((lsp_symbol *)obj)->symb);
                 if (((lsp_symbol *)obj)->val) {
@@ -652,10 +601,6 @@ static int repr_(lsp_obj *obj, char **out, size_t *size, bool repr)
                     ret = 1;
                     goto end;
                 }
-                //if (lsp_obj_repr_str(o, out, size)) {
-                //    ret = 1;
-                //    goto end;
-                //}
                 if (k + 1 < lst->vec.len) {
                     alloc_strcatf(out, size, " ");
                 } 
@@ -685,6 +630,7 @@ int lsp_obj_print_repr(lsp_obj *obj)
     }
 
     puts(buf);
+    fflush(stdout);
     free(buf);
     return 0;
 }
@@ -698,7 +644,8 @@ int lsp_obj_print(lsp_obj *obj)
         return 1;
     }
 
-    puts(buf);
+    printf("%s", buf);
+    fflush(stdout);
     free(buf);
     return 0;
 #if 0
