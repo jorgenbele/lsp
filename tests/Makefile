@@ -20,6 +20,7 @@ token_test:
 interp_test:
 	$(CC) $(CFLAGS) -DMOCKA_TEST -o token.o -c ../token.c
 	$(CC) $(CFLAGS) -DMOCKA_TEST -o utils.o -c ../utils.c
+	$(CC) $(CFLAGS) -DMOCKA_TEST -o repl.o -c ../repl.c
 	$(CC) $(CFLAGS) -DMOCKA_TEST -o builtins.o -c ../builtins.c
 	$(CC) $(CFLAGS) -DMOCKA_TEST -o types.o -c ../types.c
 	$(CC) $(CFLAGS) -DMOCKA_TEST -o interp.o -c ../interp.c

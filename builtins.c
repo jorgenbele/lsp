@@ -7,6 +7,7 @@
 #include "utils.h"
 #include "types.h"
 #include "interp.h"
+#include "repl.h"
 
 const builtin builtins[] = {
     {"progn", builtin_progn},
@@ -31,6 +32,7 @@ const builtin builtins[] = {
     {"repr", builtin_repr},
     {"eval", builtin_eval},
     {"repeat", builtin_repeat},
+    {"load-file", builtin_loadfile},
 
     // lists
     {"len", builtin_len},
@@ -533,4 +535,29 @@ lsp_obj *builtin_reverse(lsp_list *argl)
     lsp_obj_pool_release_obj((lsp_obj *) lst);
 
     return (lsp_obj *) rev;
+}
+
+lsp_obj *builtin_loadfile(lsp_list *argl)
+{
+    REQUIRES_N_ARGS("loadfile", argl, 1);
+    lsp_str *str = (lsp_str *) lsp_list_get_eval(argl, 1);
+    assert(str && str->type == OBJ_STRING);
+
+    const char *cstr = str->ptr;
+    assert(cstr);
+    FILE *fp = fopen(cstr, "r");
+    if (!fp) {
+        fprintf(stderr, "Runtime error: unable to open file `%s`!\n", cstr);
+    } else {
+        int ret = load_file(fp, false, false, true); // set the last true to false when not in repl
+        if (ret) {
+            fprintf(stderr, "Runtime error: failed to load file `%s`!\n", cstr);
+        }
+        fclose(fp);
+    }
+
+    lsp_obj_destroy((lsp_obj *) str);
+    lsp_obj_pool_release_obj((lsp_obj *) str);
+
+    return lsp_obj_new(OBJ_GENERIC);
 }

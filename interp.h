@@ -2,6 +2,7 @@
 #define __INTERP_H_
 
 #include <time.h>
+#include <stdio.h>
 
 #include "types.h"
 #include "token.h"
@@ -53,6 +54,5 @@ int set_symbol(lsp_symbol *symb, bool update, bool ignore_existing, bool global)
 // DEPRECATED
 int exec_tokens(vector_token *tokens);
 vector_lsp_obj_ptr *exec_tokens_(vector_token *tokens);
-
 
 #endif // __INTERP_H_

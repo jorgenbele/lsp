@@ -65,4 +65,6 @@ lsp_obj *builtin_cdr(lsp_list *argl);
 lsp_obj *builtin_append(lsp_list *argl);
 lsp_obj *builtin_reverse(lsp_list *argl);
 
+lsp_obj *builtin_loadfile(lsp_list *argl);
+
 #endif // __BUILTINS_H_
