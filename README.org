@@ -8,3 +8,5 @@
 ** Comment what is being allocated.
 ** Use enums for errors when ints are used instead of booleans.
 
+
+* TODO FIX >= and <= for mixed int/float.

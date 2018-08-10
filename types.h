@@ -68,13 +68,14 @@ struct lsp_symbol {
     LSP_OBJ_STRUCT;
     char *symb;      // const
     size_t symb_len; // const
+    bool func;       // is this a function?
     lsp_obj *val;    // value
 };
 typedef struct lsp_symbol lsp_symbol;
 
 // store the largest possible object size size
 // this value is used when allocating new "generic" objects
-#define MAX_LSP_OBJ_SIZE sizeof(lsp_list)
+#define MAX_LSP_OBJ_SIZE (sizeof(lsp_symbol) > sizeof(lsp_list) ? sizeof(lsp_symbol) : sizeof(lsp_list))
 
 int lsp_obj_init_w(lsp_obj *obj, lsp_obj_type type, void *data, size_t size);
 int lsp_obj_init(lsp_obj *obj, lsp_obj_type type);

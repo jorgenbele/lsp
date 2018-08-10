@@ -62,7 +62,7 @@ int lsp_obj_cmp(lsp_obj *obj1, lsp_obj *obj2)
     if (obj1->type != obj2->type) {
         // if the type is a combination INT and FLOAT
         // then they are both converted to FLOAT and
-        // f1 - f2 is returned, else -1 is always returned
+        // f1 - f2 is returned, else runtime error is thrown 
         if ((obj1->type == OBJ_INT || obj1->type == OBJ_FLOAT)
             && (obj2->type == OBJ_INT || obj2->type == OBJ_FLOAT)) {
             double obj1_flt = 0;
@@ -79,6 +79,10 @@ int lsp_obj_cmp(lsp_obj *obj1, lsp_obj *obj2)
             }
             return obj1_flt - obj2_flt;
         }
+        fprintf(stderr, "Runtime error: comparison between different"
+                "unconvertable types %s and %s",
+                obj_type_str[obj1->type], obj_type_str[obj2->type]);
+        exit(1);
         return -1;
     }
 
@@ -145,7 +149,7 @@ int lsp_obj_cmp(lsp_obj *obj1, lsp_obj *obj2)
             }
         }
     }
-    return 0;
+    return -1;
 }
 
 // TODO refactor
@@ -196,6 +200,12 @@ lsp_obj *lsp_obj_clone(const lsp_obj *src)
             assert(symb);
             symb->symb_len = src_symb->symb_len;
             symb->symb = xstrdupn(src_symb->symb, src_symb->symb_len);
+            symb->func = src_symb->func;
+            if (src_symb->val) {
+                symb->val = lsp_obj_clone(src_symb->val);
+            } else {
+                symb->val = NULL;
+            }
             assert(symb->symb);
             break;
         }
@@ -245,6 +255,7 @@ int lsp_obj_init_w(lsp_obj *obj, lsp_obj_type type, void *data, size_t size)
             symb->type = type;
             symb->ptr = data;
             symb->size = sizeof(obj->size);
+            symb->func = false;
             break;
         }
 
@@ -518,24 +529,60 @@ lsp_obj *lsp_obj_eval(lsp_obj *obj)
 
 lsp_obj *lsp_symbol_eval(const lsp_symbol *symb)
 {
-// check if it exists in the symbols list, and if so return
-// (a clone of) the val it contains.
-    size_t len = lsp_list_len(global_interp_ctx.symbols);
-    for (size_t i = 0; i < len; i++) {
-        const lsp_obj *e_obj = lsp_list_get(global_interp_ctx.symbols, i);
-        assert(e_obj->type == OBJ_SYMBOL);
-        const lsp_symbol *e_symb = (lsp_symbol *) e_obj;
+    // check if it exists in the symbols list, checking the most local
+    // list first, and if so return (a clone of) the val it contains.
+    size_t symbols_stack_len = global_interp_ctx.symbols_stack.len;
+    size_t symbols_stack_i = symbols_stack_len;
+    while (symbols_stack_i-- > 0) {
+        fprintf(stderr, "** checking stack i: %lu **\n", symbols_stack_i);
+        //lsp_list *symbols = vector_peek_lsp_list_ptr(&global_interp_ctx.symbols_stack);
+        lsp_list *symbols = vector_get_lsp_list_ptr(&global_interp_ctx.symbols_stack, symbols_stack_i);
+        //symbols_stack_i--;
+        assert(symbols);
+        size_t len = lsp_list_len(symbols);
+        //size_t len = lsp_list_len(global_interp_ctx.symbols);
+        for (size_t i = 0; i < len; i++) {
+            //const lsp_obj *e_obj = lsp_list_get(global_interp_ctx.symbols, i);
+            const lsp_obj *e_obj = lsp_list_get(symbols, i);
+            assert(e_obj->type == OBJ_SYMBOL);
+            const lsp_symbol *e_symb = (lsp_symbol *) e_obj;
 
-        if (e_symb->symb_len == symb->symb_len
-            && !strncmp(e_symb->symb, symb->symb, e_symb->symb_len)) {
-            if (e_symb->val->type == OBJ_SYMBOL) {
-                // recurse until no symbol is found
-                // or it is itself
-                return lsp_symbol_eval(e_symb);
+            //fprintf(stderr, "** eval symb comparing `%s`:%lu and `%s`:%lu\n",
+            //        e_symb->symb, e_symb->symb_len, symb->symb, symb->symb_len);
+
+            //if (e_symb->symb_len == symb->symb_len
+            //&& !strncmp(e_symb->symb, symb->symb, e_symb->symb_len)) {
+            int r = strcmp(e_symb->symb, symb->symb);
+            //fprintf(stderr, "strcmp returned: %d\n", r);
+            if (!r) {
+                //fprintf(stderr, "** success **\n");
+
+                if (e_symb->func) {
+                    //// the symbol is a function, execute it
+                    //// push the current symbols list to 
+                    //fprintf(stderr, "** eval symb executing function **\n");
+                    //assert(e_symb->val->type == OBJ_LIST);
+                    //// unsafe
+                    //return execute_defun_func((lsp_symbol *) e_symb, (lsp_list *) e_symb->val);
+                    //lsp_obj_print_repr((lsp_obj *) e_symb);
+                    lsp_obj *clone = lsp_obj_clone((lsp_obj *) e_symb);
+                    assert(clone);
+                    fprintf(stderr, "** success: returning: ");
+                    lsp_obj_print_repr(clone);
+                    return clone;
+
+                } else if (e_symb->val->type == OBJ_SYMBOL) {
+                    // recurse until no symbol is found
+                    // or it is itself
+                    fprintf(stderr, "** eval symb recursing function **\n");
+                    return lsp_symbol_eval(e_symb);
+                }
+                fprintf(stderr, "** executing cloned val **\n");
+                return lsp_obj_clone(e_symb->val);
             }
-            return lsp_obj_clone(e_symb->val);
         }
     }
+    fprintf(stderr, "** evaluating to self **\n");
     return lsp_obj_clone((lsp_obj *) symb); // evaluates to itself
 }
 
@@ -562,13 +609,30 @@ static int repr_(lsp_obj *obj, char **out, size_t *size, bool repr)
             alloc_strcatf(out, size, "%lf", obj->flt);
             break;
 
-        case OBJ_SYMBOL:
-            alloc_strcatf(out, size, "%s", ((lsp_symbol *)obj)->symb);
-            if (((lsp_symbol *)obj)->val) {
-                alloc_strcatf(out, size, ":");
-                ret = repr_(((lsp_symbol *)obj)->val, out, size, repr);
+        case OBJ_SYMBOL: {
+            lsp_symbol *symb = (lsp_symbol *) obj;
+            assert(symb && symb->type == OBJ_SYMBOL);
+
+            if (symb->func) {
+                alloc_strcatf(out, size, "%s", symb->symb);
+                alloc_strcatf(out, size, "<func ");
+                if (symb->val) {
+                    repr_(symb->val, out, size, repr);
+                }
+                alloc_strcatf(out, size, ">");
+                //if (((lsp_symbol *)obj)->val) {
+                //    alloc_strcatf(out, size, ":");
+                //    ret = repr_(((lsp_symbol *)obj)->val, out, size, repr);
+                //}
+            } else {
+                alloc_strcatf(out, size, "%s", ((lsp_symbol *)obj)->symb);
+                if (((lsp_symbol *)obj)->val) {
+                    alloc_strcatf(out, size, ":");
+                    ret = repr_(((lsp_symbol *)obj)->val, out, size, repr);
+                }
             }
             break;
+        }
 
         case OBJ_GENERIC:
             alloc_strcatf(out, size, "%x:size:%lu", obj->ptr, obj->size);
@@ -747,6 +811,7 @@ lsp_obj *lsp_list_get_eval(lsp_list *lst, size_t i)
     return NULL;
 }
 
+// returns all list items after, and including index i.
 lsp_list *lsp_list_after(lsp_list *lst, size_t i)
 {
     lsp_list *after = (lsp_list *) lsp_obj_new(OBJ_LIST);

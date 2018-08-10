@@ -355,7 +355,7 @@ int tokenize_str_r(const char *str, vector_token *tokens, const char **last)
             if (!ptr)  {
                 parse_error("Failed to parse atom.\n");
                 ret = TOKENIZE_STR_ERR;
-                goto end;
+                goto ret_;
                 //break;
             }
             //fprintf(stderr, "ATOM rest:`%s`\n", ptr);
@@ -364,13 +364,13 @@ int tokenize_str_r(const char *str, vector_token *tokens, const char **last)
     }
 
 end:
-
     if (!ptr && !ret) {
         ret = TOKENIZE_STR_DONE;
     } else if (!*ptr) {
         ret = TOKENIZE_STR_ERR;
     }
 
+ret_:
     return ret;
 }
 

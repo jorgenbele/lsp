@@ -193,17 +193,35 @@ int interp_ctx_init(interp_ctx *ctx)
 {
     memset(ctx, 0, sizeof (*ctx));
     //assert(!lsp_obj_init((lsp_obj *) &ctx->symbols, OBJ_LIST));
-    ctx->symbols = (lsp_list *) lsp_obj_pool_take_obj();
-    assert(ctx->symbols);
+    //ctx->symbols = (lsp_list *) lsp_obj_pool_take_obj();
+    //assert(ctx->symbols);
+    assert(!vector_init_lsp_list_ptr(&ctx->symbols_stack));
+
+    lsp_list *symbols = (lsp_list *) lsp_obj_pool_take_obj();
+    assert(symbols);
+    lsp_obj_init((lsp_obj *) symbols, OBJ_LIST);
+    assert(symbols->type == OBJ_LIST);
+    assert(!vector_push_lsp_list_ptr(&ctx->symbols_stack, symbols));
+
     assert(!clock_gettime(CLOCK_MONOTONIC, &ctx->start));
     return 0;
 }
 
 int interp_ctx_destroy(interp_ctx *ctx)
 {
-    assert(!lsp_obj_destroy((lsp_obj *) &ctx->symbols));
-    lsp_obj_pool_release_obj((lsp_obj *) ctx->symbols);
+    while (ctx->symbols_stack.len > 0) {
+        lsp_list *symbols = vector_pop_lsp_list_ptr(&ctx->symbols_stack);
+        if (ctx->symbols_stack.error) {
+            break;
+        }
+        assert(symbols);
+        assert(!lsp_obj_pool_release_obj((lsp_obj *) symbols));
+    }
+
+    //assert(!lsp_obj_destroy((lsp_obj *) &ctx->symbols));
+    //assert(!lsp_obj_pool_release_obj((lsp_obj *) ctx->symbols));
     //free(ctx->symbols);
+    assert(!vector_destroy_lsp_list_ptr(&ctx->symbols_stack));
     return 0;
 }
 
@@ -257,12 +275,17 @@ lsp_list *ast_execute(lsp_list *ast)
 static int set_symbol(lsp_symbol *symb, bool update, bool ignore_existing)
 {
     // make sure it does not already exist
-    size_t len = lsp_list_len(global_interp_ctx.symbols);
-    for (size_t i = 0; i < len; i++) {
+    lsp_list *symbols = vector_peek_lsp_list_ptr(&global_interp_ctx.symbols_stack);
+    assert(symbols);
+    assert(symbols->type == OBJ_LIST);
+    //size_t len = lsp_list_len(global_interp_ctx.symbols);
+    size_t len = lsp_list_len(symbols);
+    for (size_t i = len; i > 0; i--) {
         //const lsp_obj *e_obj = lsp_list_get(&global_interp_ctx.symbols, i);
         // unsafe
         lsp_obj *e_obj = vector_get_lsp_obj_ptr(
-            &global_interp_ctx.symbols->vec, i
+            //&global_interp_ctx.symbols->vec, i
+            &symbols->vec, i-1
         );
         assert(e_obj);
         assert(e_obj->type == OBJ_SYMBOL);
@@ -286,8 +309,10 @@ static int set_symbol(lsp_symbol *symb, bool update, bool ignore_existing)
                 assert(!lsp_obj_destroy(e_obj));
                 //free(e_obj);
                 assert(!lsp_obj_pool_release_obj(e_obj));
-                return vector_set_lsp_obj_ptr(&global_interp_ctx.symbols->vec,
-                                              (lsp_obj *) symb, i);
+                //return vector_set_lsp_obj_ptr(&global_interp_ctx.symbols->vec,
+                //                              (lsp_obj *) symb, i);
+                fprintf(stderr, "** updating existing **\n");
+                return vector_set_lsp_obj_ptr(&symbols->vec, (lsp_obj *) symb, i-1);
             }
         }
 
@@ -316,27 +341,57 @@ static int set_symbol(lsp_symbol *symb, bool update, bool ignore_existing)
     //    memcpy(existing, symb, sizeof (*symb));
     //}
 
-    // does not already exist, push to list
-    return lsp_list_push(global_interp_ctx.symbols, (lsp_obj *) symb);
+    // does not already exist, push to list at the top of the stack
+    //return lsp_list_push(global_interp_ctx.symbols, (lsp_obj *) symb);
+    //return lsp_list_push(symbols, (lsp_obj *) symb);
+    fprintf(stderr, "** pushing symbol ");
+    lsp_obj_print_repr((lsp_obj *) symb);
+    lsp_list *top_symbols = vector_peek_lsp_list_ptr(&global_interp_ctx.symbols_stack);
+    assert(top_symbols);
+    int ret = lsp_list_push(top_symbols, (lsp_obj *) symb);
+    fprintf(stderr, "** top of symbol stack: ");
+    lsp_obj_print_repr((lsp_obj *) top_symbols);
+    return ret;
 }
 
 /*
+  (defun <funcname> <arglist> <atom>...)
  * Example
  * (defun test (arg1 arg2)
  *      (print arg1)
  *      (print arg2))
  *
  * (test "Hello" ", World") => prints "Hello, World"
- * 
  */
 lsp_obj *evaluate_defun(lsp_list *argl)
 {
-    assert(!"defun is not implemented yet");
+    //assert(!"defun is not implemented yet");
     //assert(lsp_list_len(lst) >= 2);
     //lsp_obj *funcname = vector_get_lsp_obj_ptr(&lst->vec, 1);
     //assert(funcname && funcname->type == OBJ_SYMBOL);
     //lsp_symbol *symb = (lsp_symbol *) funcname;
-    return NULL;
+
+    REQUIRES_ATLEAST_N_ARGS("defun", argl, 3);
+
+    const lsp_obj *var = lsp_list_get(argl, 1);
+    assert(var);
+    assert(var->type == OBJ_SYMBOL);
+
+    lsp_symbol *symb = (lsp_symbol *) lsp_obj_clone(var);
+    assert(symb);
+    symb->func = true;
+
+    lsp_list *rest = lsp_list_after(argl, 1);
+    assert(rest);
+    fprintf(stderr, "rest:");
+    lsp_obj_print_repr(rest);
+    symb->val = (lsp_obj *) rest;
+    assert(!set_symbol(symb, true, true));
+
+    fprintf(stderr, "symb:");
+    lsp_obj_print_repr(symb);
+
+    return lsp_obj_new(OBJ_GENERIC);
 }
 
 // (setq <name> <value>)
@@ -378,6 +433,104 @@ static lsp_obj *execute_builtin(lsp_symbol *symb, lsp_list *lst)
     return NULL;
 }
 
+lsp_obj *execute_defun_func(lsp_symbol *symb, lsp_list *argl)
+{
+    assert(symb->func); // cannot execute symbol that is
+
+    fprintf(stderr, "** exec argl:");
+    lsp_obj_print_repr(argl);
+
+    fprintf(stderr, "** exec symb:");
+    lsp_obj_print_repr(symb);
+
+    // get the function
+    lsp_obj *func = lsp_symbol_eval(symb);
+    assert(func);
+    fprintf(stderr, "** exec func:");
+    lsp_obj_print_repr(func);
+
+    // create and use a new "block" scope
+    lsp_list *symbols = (lsp_list *) lsp_obj_new(OBJ_LIST);
+    assert(symbols);
+    fprintf(stderr, "** symbols:");
+    lsp_obj_print_repr(symbols);
+
+    // set the symbols listed in the funcs args (index 1 in the symb->vals list)
+    // to the corresponding value in argl in the new "block" scope
+    lsp_list *defl = (lsp_list *) symb->val;
+    assert(defl);
+    assert(defl->type == OBJ_LIST);
+    fprintf(stderr, "** defl:");
+    lsp_obj_print_repr(defl);
+
+    lsp_list *argdefl = (lsp_list *) lsp_list_get(defl, 1);
+    assert(argdefl);
+    assert(argdefl->type == OBJ_LIST);
+    fprintf(stderr, "** argdefl:");
+    lsp_obj_print_repr(argdefl);
+
+    size_t argdefl_len = lsp_list_len(argdefl);
+    size_t argl_len = lsp_list_len(argl);
+    fprintf(stderr, "** argdefl: %lu, argl: %lu\n", argdefl_len, argl_len);
+
+    assert(argdefl_len == argl_len - 1); // make sure all arguments are passed
+    for (size_t i = 0; i < argdefl_len; i++) {
+        lsp_symbol *symb_def = (lsp_symbol *) lsp_list_get(argdefl, i);
+        assert(symb_def && symb_def->type == OBJ_SYMBOL);
+        fprintf(stderr, "** symb_def:");
+        lsp_obj_print_repr(symb_def);
+
+        lsp_obj *arg = lsp_list_get(argl, i+1);
+        assert(arg);
+        fprintf(stderr, "** arg:");
+        lsp_obj_print_repr(arg);
+
+        lsp_symbol *symb_clone = (lsp_symbol *) lsp_obj_clone((lsp_obj *) symb_def);
+        assert(symb_clone && symb_clone->type == OBJ_SYMBOL);
+
+        fprintf(stderr, "** symb_clone:");
+        lsp_obj_print_repr(symb_clone);
+
+        lsp_obj *arg_clone = (lsp_obj *) lsp_obj_clone((lsp_obj *) arg);
+        assert(arg_clone);
+
+        fprintf(stderr, "** arg_clone:");
+        lsp_obj_print_repr(arg_clone);
+
+        symb_clone->val = arg_clone;
+
+        // finally push the new symbol with the value provided in the argument list
+        // to the symbols list
+        assert(!lsp_list_push(symbols, (lsp_obj *) symb_clone));
+    }
+
+    fprintf(stderr, "** SYMBOLS STACK: ");
+    lsp_obj_print_repr(symbols);
+
+    // push the new symbols to the top of the symbols_stack
+    assert(!vector_push_lsp_list_ptr(&global_interp_ctx.symbols_stack, symbols));
+
+    // evaluate the function (actually only the symb->vals list) with
+    // the new symbols at the top of the symbols stack.
+    fprintf(stderr, "** SYMB->val: ");
+    lsp_obj_print_repr(symb->val);
+    assert(symb->val->type == OBJ_LIST);
+    lsp_obj *func_s_expr = lsp_list_get((lsp_list *) symb->val, 2);
+    assert(func_s_expr);
+    //lsp_obj *res = lsp_obj_eval(symb->val);
+    lsp_obj *res = lsp_obj_eval(func_s_expr);
+    assert(res);
+
+    // now pop and destroy the top of the symbols_stack.
+    lsp_list *symbols_fs = vector_pop_lsp_list_ptr(&global_interp_ctx.symbols_stack);
+    assert(symbols_fs);
+    lsp_obj_destroy((lsp_obj *) symbols_fs);
+    lsp_obj_pool_release_obj((lsp_obj *) symbols_fs);
+    
+    // return the result
+    return res;
+}
+
 lsp_obj *list_evaluate(lsp_list *lst)
 {
     if (lst->vec.len == 0) {
@@ -396,14 +549,29 @@ lsp_obj *list_evaluate(lsp_list *lst)
         assert(eval);
 
         if (eval->type == OBJ_SYMBOL) {
-            // check if builtin
-            lsp_obj *rlst = execute_builtin((lsp_symbol *) eval, lst);
-            lsp_obj_destroy(eval);
-            //free(eval);
-            lsp_obj_pool_release_obj(eval);
-            if (rlst) {
-                ret = rlst;
+            lsp_symbol *e_symb = (lsp_symbol *) eval;
+            // check if function (defined using defun)
+            if (e_symb->func) {
+                fprintf(stderr, "*** list_evaluate executing defun-function: ");
+                lsp_obj_print_repr(e_symb);
+                fprintf(stderr, ", lst, ");
+                lsp_obj_print_repr(lst);
+                lsp_obj *rlst = execute_defun_func(e_symb, lst);
+                if (rlst) {
+                    ret = rlst;
+                }
+            } else {
+                // check if builtin
+                fprintf(stderr, "*** list_evaluate executing builtin-function! ***\n");
+                lsp_obj *rlst = execute_builtin(e_symb, lst);
+                if (rlst) {
+                    ret = rlst;
+                }
             }
+
+            lsp_obj_destroy(eval);
+            lsp_obj_pool_release_obj(eval);
+            //free(eval);
         } else {
             ret = eval;
         }
@@ -413,5 +581,6 @@ lsp_obj *list_evaluate(lsp_list *lst)
         ret = lsp_obj_clone((lsp_obj *) lst);
     }
 
+ret_:
     return ret;
 }
