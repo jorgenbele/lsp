@@ -9,8 +9,6 @@
 #include "utils.h"
 
 // static functions
-static int set_symbol(lsp_symbol *symb, bool update, bool ignore_existing);
-
 interp_ctx global_interp_ctx;
 
 DEF_VECTOR_FUNCS(interp_state, interp_state, ((interp_state) {NORMAL, 0}))

@@ -9,22 +9,35 @@
 #include "interp.h"
 
 const builtin builtins[] = {
+    {"progn", builtin_progn},
     {"print", builtin_print},
     {"println", builtin_println},
+
+    // comparison
     {"eql", builtin_obj_eql},
     {"cmp", builtin_obj_cmp},
     {"lt", builtin_obj_lt},
     {"gt", builtin_obj_gt},
     {"not", builtin_int_not},
+
+    // arithmetic
     {"+", builtin_number_sum},
     {"-", builtin_number_minus},
     {"*", builtin_number_mult},
+
+    // misc
     {"if", builtin_if},
     {"quote", builtin_quote},
     {"repr", builtin_repr},
     {"eval", builtin_eval},
     {"repeat", builtin_repeat},
-    {"len", builtin_list_len},
+
+    // lists
+    {"len", builtin_len},
+    {"car", builtin_car},
+    {"cdr", builtin_cdr},
+    {"append", builtin_append},
+    {"reverse", builtin_reverse},
     {NULL, NULL},
 };
 
@@ -39,6 +52,21 @@ builtin_func_ptr builtin_get_func(const char *name)
         ptr++;
     }
     return  NULL;
+}
+
+lsp_obj *builtin_progn(lsp_list *argl)
+{
+    size_t argl_len = lsp_list_len(argl);
+    lsp_obj *prev = NULL;
+    for (size_t i = 1; i < argl_len; i++) {
+        lsp_obj *obj = lsp_list_get_eval(argl, i);
+        if (prev) {
+            assert(!lsp_obj_destroy(prev));
+            assert(!lsp_obj_pool_release_obj(prev));
+        }
+        prev = obj;
+    }
+    return prev;
 }
 
 lsp_obj *builtin_print(lsp_list *argl)
@@ -57,7 +85,7 @@ lsp_obj *builtin_print(lsp_list *argl)
         //free(obj);
         lsp_obj_pool_release_obj(obj);
     }
-    return NULL;
+    return lsp_obj_new(OBJ_GENERIC);
 }
 
 lsp_obj *builtin_println(lsp_list *argl)

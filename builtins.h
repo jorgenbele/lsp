@@ -38,6 +38,7 @@ extern const builtin builtins[];
 //void *builtin_get_func(const char *name);
 builtin_func_ptr builtin_get_func(const char *name);
 
+lsp_obj *builtin_progn(lsp_list *argl);
 lsp_obj *builtin_print(lsp_list *argl);
 lsp_obj *builtin_println(lsp_list *argl);
 
@@ -58,6 +59,10 @@ lsp_obj *builtin_repr(lsp_list *argl);
 lsp_obj *builtin_eval(lsp_list *argl);
 lsp_obj *builtin_repeat(lsp_list *argl);
 
-lsp_obj *builtin_list_len(lsp_list *argl);
+lsp_obj *builtin_len(lsp_list *argl);
+lsp_obj *builtin_car(lsp_list *argl);
+lsp_obj *builtin_cdr(lsp_list *argl);
+lsp_obj *builtin_append(lsp_list *argl);
+lsp_obj *builtin_reverse(lsp_list *argl);
 
 #endif // __BUILTINS_H_

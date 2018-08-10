@@ -47,6 +47,9 @@ int interp_ctx_destroy(interp_ctx *ctx);
 lsp_obj *list_evaluate(lsp_list *lst);
 lsp_obj *execute_defun_func(lsp_symbol *symb, lsp_list *argl);
 
+
+int set_symbol(lsp_symbol *symb, bool update, bool ignore_existing, bool global);
+
 // DEPRECATED
 int exec_tokens(vector_token *tokens);
 vector_lsp_obj_ptr *exec_tokens_(vector_token *tokens);
