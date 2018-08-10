@@ -442,7 +442,7 @@ lsp_obj *builtin_cons(lsp_list *argl)
 {
     REQUIRES_N_ARGS("cons", argl, 2);
     lsp_obj *obj = lsp_list_get_eval(argl, 1);
-    assert(o    // push new list to the symbols stackbj);
+    assert(obj);
     lsp_list *lst = (lsp_list *) lsp_list_get_eval(argl, 2);
     assert(lst && lst->type == OBJ_LIST);
 
