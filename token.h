@@ -48,7 +48,9 @@ extern const char *token_type_str[];
     (isalpha((c)) || (c) == '_'                 \
      || (c) == '+' || (c) == '-'                \
      || (c) == '/' || (c) == '*'                \
-     || (c) == '#' || (c) == '%')
+     || (c) == '>' || (c) == '<'                \
+     || (c) == '=' || (c) == '#'                \
+     || (c) == '%' || (c) == '!')
 
 #define IS_SYMBOL_CHR(c) (IS_SYMBOL_START_CHR((c)) || isdigit((c))) 
 

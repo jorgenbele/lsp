@@ -16,10 +16,18 @@ const builtin builtins[] = {
 
     // comparison
     {"eql", builtin_obj_eql},
+    {"=", builtin_obj_eql},
     {"cmp", builtin_obj_cmp},
     {"lt", builtin_obj_lt},
+    {"<", builtin_obj_lt},
+    {"le", builtin_obj_le},
+    {"<=", builtin_obj_le},
     {"gt", builtin_obj_gt},
+    {">", builtin_obj_gt},
+    {"ge", builtin_obj_ge},
+    {">=", builtin_obj_ge},
     {"not", builtin_int_not},
+    {"!", builtin_int_not},
 
     // arithmetic
     {"+", builtin_number_sum},
@@ -36,10 +44,12 @@ const builtin builtins[] = {
 
     // lists
     {"len", builtin_len},
+    {"cons", builtin_cons},
     {"car", builtin_car},
     {"cdr", builtin_cdr},
     {"append", builtin_append},
     {"reverse", builtin_reverse},
+    {"list", builtin_list},
     {NULL, NULL},
 };
 
@@ -112,40 +122,24 @@ lsp_obj *builtin_int_not(lsp_list *argl)
     return obj_not;
 }
 
+#define CMP_BUILTIN(name, res, condition, expected_type)    \
+    lsp_obj *builtin_obj_##name(lsp_list *argl)             \
+    {                                                       \
+        REQUIRES_ATLEAST_N_ARGS(#name, argl, 2);            \
+        lsp_obj *res = builtin_obj_cmp(argl);               \
+        assert(res);                                        \
+        assert(res->type == OBJ_INT);                       \
+        res->integer = condition;                           \
+        return res;                                         \
+    }
 
-lsp_obj *builtin_obj_gt(lsp_list *argl)
-{
-    REQUIRES_ATLEAST_N_ARGS("lt", argl, 2);
+CMP_BUILTIN(gt, res, res->integer > 0, OBJ_INT)
+CMP_BUILTIN(ge, res, res->integer >= 0, OBJ_INT)
+CMP_BUILTIN(lt, res, res->integer < 0, OBJ_INT)
+CMP_BUILTIN(le, res, res->integer <= 0, OBJ_INT)
+CMP_BUILTIN(eql, res, res->integer == 0, OBJ_INT)
 
-    // unsafe
-    lsp_obj *cmp_res = builtin_obj_cmp(argl);
-    assert(cmp_res->type == OBJ_INT);
-    cmp_res->integer = cmp_res->integer > 0;
-    return cmp_res;
-}
-
-lsp_obj *builtin_obj_lt(lsp_list *argl)
-{
-    REQUIRES_ATLEAST_N_ARGS("lt", argl, 2);
-
-    // unsafe
-    lsp_obj *cmp_res = builtin_obj_cmp(argl);
-    assert(cmp_res->type == OBJ_INT);
-    cmp_res->integer = cmp_res->integer < 0;
-    return cmp_res;
-}
-
-lsp_obj *builtin_obj_eql(lsp_list *argl)
-{
-    REQUIRES_ATLEAST_N_ARGS("eql", argl, 2);
-
-    // unsafe
-    lsp_obj *cmp_res = builtin_obj_cmp(argl);
-    assert(cmp_res->type == OBJ_INT);
-    cmp_res->integer = cmp_res->integer == 0;
-    return cmp_res;
-}
-
+#undef CMP_BUILTIN
 
 lsp_obj *builtin_obj_cmp(lsp_list *argl)
 {
@@ -536,6 +530,24 @@ lsp_obj *builtin_reverse(lsp_list *argl)
 
     return (lsp_obj *) rev;
 }
+
+lsp_obj *builtin_list(lsp_list *argl)
+{
+    REQUIRES_ATLEAST_N_ARGS("list", argl, 1);
+
+    lsp_list *lst = (lsp_list *) lsp_obj_new(OBJ_LIST);
+    assert(lst);
+
+    size_t len = lsp_list_len(argl);
+    for (size_t i = 1; i < len; i++) {
+        lsp_obj *obj = (lsp_obj *) lsp_list_get_eval(argl, i);
+        assert(obj);
+        assert(!lsp_list_push(lst, obj));
+    }
+
+    return (lsp_obj *) lst;
+}
+
 
 lsp_obj *builtin_loadfile(lsp_list *argl)
 {

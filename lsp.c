@@ -45,7 +45,7 @@ int main(int argc, const char *argv[])
                             ret = 1;
                             goto parse_args_failed;
                         }
-                        *(load_files_ptr++) = argv[i+1];
+                        *(load_files_ptr++) = argv[i+1]; 
                         i++;
                         start_arg++;
                         goto inner_loop_end;

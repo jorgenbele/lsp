@@ -17,8 +17,8 @@ CC = musl-clang
 # define any compile-time flags
 #CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic #-std=c17 #-fPIC
 #CFLAGS := $(CFLAGS) -O3 -Wall -Wpedantic -std=c17 -fPIC
-#CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic -std=c17 -fPIC
-CFLAGS := $(CFLAGS) -O3 -Wall -Wpedantic -std=c17 -fPIC #-DUSE_OBJ_POOL
+CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic -std=c17 -fPIC
+#CFLAGS := $(CFLAGS) -O3 -Wall -Wpedantic -std=c17 -fPIC #-DUSE_OBJ_POOL
 #CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic
 LIBS :=
 SRCS = lsp.c token.c builtins.c interp.c types.c utils.c repl.c

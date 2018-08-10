@@ -57,28 +57,28 @@ bool lsp_obj_is_true(lsp_obj *obj)
     return false;
 }
 
+#define DIFF_TO_CMP(type, left, right)                                  \
+    (int) ((((type) ((type) (left) - (type) (right))) < 0) ?            \
+           -1 : (((type) ((type) (left) - (type) (right))) > 0) ? 1 : 0)
+
+
+#define IS_INT_OR_FLOAT(obj) \
+        ((obj)->type == OBJ_INT || (obj)->type == OBJ_FLOAT)
+
+#define CONV_INT_TO_FLOAT(obj)                                     \
+        double flt_##obj = (obj)->type == OBJ_INT ? (double) (obj)->integer : (obj)->flt;
+
 int lsp_obj_cmp(lsp_obj *obj1, lsp_obj *obj2)
 {
     if (obj1->type != obj2->type) {
-        // if the type is a combination INT and FLOAT
-        // then they are both converted to FLOAT and
-        // f1 - f2 is returned, else runtime error is thrown 
-        if ((obj1->type == OBJ_INT || obj1->type == OBJ_FLOAT)
-            && (obj2->type == OBJ_INT || obj2->type == OBJ_FLOAT)) {
-            double obj1_flt = 0;
-            if (obj1->type == OBJ_INT) {
-                obj1_flt = (double) obj1->integer;
-            } else {
-                obj1_flt = (double) obj1->flt;
-            }
-            double obj2_flt = 0;
-            if (obj2->type == OBJ_INT) {
-                obj2_flt = (double) obj2->integer;
-            } else {
-                obj2_flt = (double) obj2->flt;
-            }
-            return obj1_flt - obj2_flt;
+        if (IS_INT_OR_FLOAT(obj1) && IS_INT_OR_FLOAT(obj2)) {
+            fprintf(stderr, "Runtime log: implicit conversion between different"
+                    " types %s and %s.\n", obj_type_str[obj1->type], obj_type_str[obj2->type]);
+            CONV_INT_TO_FLOAT(obj1);
+            CONV_INT_TO_FLOAT(obj2);
+            return DIFF_TO_CMP(double, flt_obj1, flt_obj2);
         }
+
         fprintf(stderr, "Runtime error: comparison between different"
                 "unconvertable types %s and %s",
                 obj_type_str[obj1->type], obj_type_str[obj2->type]);
@@ -92,17 +92,20 @@ int lsp_obj_cmp(lsp_obj *obj1, lsp_obj *obj2)
             // NOTE size is actually the length of the string.
             const lsp_str *str1 = (lsp_str*) obj1;
             const lsp_str *str2 = (lsp_str*) obj2;
-            if (str1->len != str2->len) {
-                return str1->len - str2->len;
+            int cmp_len = DIFF_TO_CMP(size_t, str1->len, str2->len);
+            if (cmp_len) {
+                return cmp_len;
             }
             return strcmp(str1->ptr, str2->ptr);
         }
 
-        case OBJ_INT:
-            return obj1->integer - obj2->integer;
+        case OBJ_INT: {
+            return DIFF_TO_CMP(int64_t, obj1->integer, obj2->integer);
+        }
 
-        case OBJ_FLOAT:
-            return obj1->flt - obj2->flt;
+        case OBJ_FLOAT: {
+            return DIFF_TO_CMP(double, obj1->flt, obj2->flt);
+        }
 
         case OBJ_SYMBOL: {
             // use the result of the evaluation of the symbols
@@ -132,8 +135,9 @@ int lsp_obj_cmp(lsp_obj *obj1, lsp_obj *obj2)
             lsp_list *lst2 = (lsp_list *) obj2;
             size_t len1 = lsp_list_len(lst1);
             size_t len2 = lsp_list_len(lst2);
-            if (len1 != len2) {
-                return len1 - len2;
+            int len_cmp = DIFF_TO_CMP(size_t, len1, len2);
+            if (len_cmp) {
+                return len_cmp;
             }
 
             for (size_t i = 0; i < len1; i++) {
@@ -148,6 +152,10 @@ int lsp_obj_cmp(lsp_obj *obj1, lsp_obj *obj2)
     }
     return -1;
 }
+
+#undef DIFF_TO_CMP
+#undef IS_INT_OR_FLOAT
+#undef CONV_INT_TO_FLOAT
 
 // TODO refactor
 lsp_obj *lsp_obj_clone(const lsp_obj *src)
@@ -586,7 +594,7 @@ static int repr_(lsp_obj *obj, char **out, size_t *size, bool repr)
         case OBJ_GENERIC:
             alloc_strcatf(out, size, "%x:size:%lu", obj->ptr, obj->size);
             break;
-                
+
         case OBJ_LIST: {
             alloc_strcatf(out, size, "(");
 
@@ -603,7 +611,7 @@ static int repr_(lsp_obj *obj, char **out, size_t *size, bool repr)
                 }
                 if (k + 1 < lst->vec.len) {
                     alloc_strcatf(out, size, " ");
-                } 
+                }
             }
             alloc_strcatf(out, size, ")");
             break;
@@ -670,7 +678,7 @@ int lsp_obj_print(lsp_obj *obj)
             printf("#generic:size:%lu", obj->size);
             break;
         }
-                
+
         case OBJ_LIST:
             putchar('(');
             // TODO:
@@ -681,8 +689,8 @@ int lsp_obj_print(lsp_obj *obj)
                     return 1;
                 }
                 if (k + 1 < lst->vec.len) {
-                    putchar(' ');  
-                } 
+                    putchar(' ');
+                }
             }
             putchar(')');
             break;
@@ -701,7 +709,7 @@ int lsp_str_init_w(lsp_str *str, const void *data, size_t len)
     str->ptr = data ? xstrdupn((char *) data, len) : NULL;
     str->size = len;
     str->len = len;
-    return 0; 
+    return 0;
 }
 
 int lsp_str_init(lsp_str *str)

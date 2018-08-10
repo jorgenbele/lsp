@@ -9,4 +9,15 @@
 ** Use enums for errors when ints are used instead of booleans.
 
 
+* Language
+#+BEGIN_SRC lisp
+; this is a single-line comment
+(setq *this-is-a-global* 10)
+(let ((x 10) (y 20))
+  (println x)
+  (println y))
+
+;(defun )
+#+END_SRC
+
 * TODO FIX >= and <= for mixed int/float.
