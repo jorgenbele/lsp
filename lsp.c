@@ -12,6 +12,8 @@
 #include "utils.h"
 #include "repl.h"
 
+enum {PRINT_AST=0x01, PRINT_TOKENS=0x02, PRINT_TIME=0x04, PRINT_RLIST=0x08, USE_REPL=0x16};
+
 int main(int argc, const char *argv[])
 {
     int ret = 0;
@@ -45,7 +47,7 @@ int main(int argc, const char *argv[])
                             ret = 1;
                             goto parse_args_failed;
                         }
-                        *(load_files_ptr++) = argv[i+1]; 
+                        *(load_files_ptr++) = argv[i+1];
                         i++;
                         start_arg++;
                         goto inner_loop_end;

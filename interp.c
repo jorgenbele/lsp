@@ -45,6 +45,7 @@ int interp_destroy()
             global_interp_ctx.n_obj_heap_new, global_interp_ctx.n_obj_destroy,
             global_interp_ctx.n_obj_eval);
     lsp_obj_pool_print_stats();
+
     return interp_ctx_destroy(&global_interp_ctx);
 }
 
@@ -208,6 +209,7 @@ int interp_ctx_destroy(interp_ctx *ctx)
             break;
         }
         assert(symbols);
+        lsp_obj_destroy((lsp_obj *) symbols);
         assert(!lsp_obj_pool_release_obj((lsp_obj *) symbols));
     }
 
@@ -369,7 +371,7 @@ lsp_obj *evaluate_let(lsp_list *argl)
     REQUIRES_ATLEAST_N_ARGS("let", argl, 2);
     size_t argl_len = lsp_list_len(argl);
 
-    const lsp_obj *pairs = lsp_list_get(argl, 1);
+    lsp_list *pairs = (lsp_list *) lsp_list_get(argl, 1);
     assert(pairs);
     assert(pairs->type == OBJ_LIST);
 
@@ -379,7 +381,8 @@ lsp_obj *evaluate_let(lsp_list *argl)
 
     size_t pairs_len = lsp_list_len(pairs);
     for (size_t i = 0; i < pairs_len; i++) {
-        const lsp_obj *pair = lsp_list_get(pairs, i);
+        lsp_list *pair = (lsp_list *) lsp_list_get(pairs, i);
+        assert(pair && pair->type == OBJ_LIST);
 
         const lsp_obj *var = lsp_list_get(pair, 0);
         assert(var);
@@ -409,10 +412,13 @@ lsp_obj *evaluate_let(lsp_list *argl)
 
     lsp_obj *eval_block = lsp_obj_eval((lsp_obj *) block);
     lsp_obj_destroy((lsp_obj *) block);
+    lsp_obj_pool_release_obj((lsp_obj *) eval_block);
 
     lsp_list *old_stack = vector_pop_lsp_list_ptr(&global_interp_ctx.symbols_stack);
     assert(old_stack);
+
     assert(!lsp_obj_destroy((lsp_obj *) old_stack));
+    lsp_obj_pool_release_obj((lsp_obj *) old_stack);
 
     return eval_block;
 }
@@ -438,9 +444,9 @@ lsp_obj *execute_defun_func(lsp_symbol *symb, lsp_list *argl)
 {
     assert(symb->func); // cannot execute symbol that is
 
-    // get the function
-    lsp_obj *func = lsp_symbol_eval(symb);
-    assert(func);
+    //// get the function
+    //lsp_obj *func = lsp_symbol_eval(symb);
+    //assert(func);
 
     // create and use a new "block" scope
     lsp_list *symbols = (lsp_list *) lsp_obj_new(OBJ_LIST);

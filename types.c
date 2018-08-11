@@ -537,6 +537,8 @@ lsp_obj *lsp_symbol_eval(const lsp_symbol *symb)
                     // recurse until no symbol is found or it is itself
                     return lsp_symbol_eval(e_symb);
                 }
+                //fprintf(stderr, "e_symb:");
+                //lsp_obj_print_repr((lsp_obj *) e_symb);
                 return lsp_obj_clone(e_symb->val);
             }
         }

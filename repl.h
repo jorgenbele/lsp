@@ -14,8 +14,5 @@ int repl_start(bool print_ast, bool print_tokens, bool print_time);
 
 int load_file(FILE *fp, bool print_ast, bool print_tokens,
                         bool print_time);
-int execute_file(FILE *fp, bool print_ast, bool print_tokens,
-                        bool print_time);
-
 
 #endif // __REPL_H_

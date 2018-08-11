@@ -8,16 +8,19 @@
 #
 
 # define the C compiler to use
-#CC = gcc
+CC = gcc
 #CC=clang
-CC = musl-clang
+#CC = musl-clang
 #CC = musl-gcc
 #CC = clang
 
 # define any compile-time flags
-#CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic #-std=c17 #-fPIC
+#CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic #-std=c17 -fPIC
+CFLAGS := $(CFLAGS) -g -Wall -Wpedantic #-std=c17 -fPIC
 #CFLAGS := $(CFLAGS) -O3 -Wall -Wpedantic -std=c17 -fPIC
-CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic -std=c17 -fPIC
+#CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic -std=c17 -fPIC -Qunused-arguments
+#CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic -std=c17 -fPIC -Qunused-arguments
+#CFLAGS := $(CFLAGS) -g -Wall -Wpedantic -std=c17 -fPIC # -Qunused-arguments
 #CFLAGS := $(CFLAGS) -O3 -Wall -Wpedantic -std=c17 -fPIC #-DUSE_OBJ_POOL
 #CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic
 LIBS :=

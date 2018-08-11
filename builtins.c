@@ -305,13 +305,19 @@ lsp_obj *builtin_if(lsp_list *argl)
     } else if (lsp_list_len(argl) == 4) {
         to_evaluate = lsp_list_get(argl, 3);
     }
+
+    lsp_obj *ret = NULL;
     if (!to_evaluate) {
         // empty
-        return lsp_obj_new(OBJ_GENERIC);
+         ret = lsp_obj_new(OBJ_GENERIC);
+    } else {
+        ret = lsp_obj_eval(to_evaluate);
     }
 
-    lsp_obj *evaluated = lsp_obj_eval(to_evaluate);
-    return evaluated;
+    lsp_obj_destroy(condition);
+    lsp_obj_pool_release_obj(condition);
+
+    return ret;
 }
 
 // (quote <obj>) => <obj>
@@ -454,8 +460,8 @@ lsp_obj *builtin_cons(lsp_list *argl)
         lsp_list_push(new_lst, o);
     }
 
-    lsp_obj_destroy(lst);
-    lsp_obj_pool_release_obj(lst);
+    lsp_obj_destroy((lsp_obj *) lst);
+    lsp_obj_pool_release_obj((lsp_obj *) lst);
 
     return (lsp_obj *) new_lst;
 }
