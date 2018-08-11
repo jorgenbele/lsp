@@ -412,7 +412,7 @@ lsp_obj *evaluate_let(lsp_list *argl)
 
     lsp_obj *eval_block = lsp_obj_eval((lsp_obj *) block);
     lsp_obj_destroy((lsp_obj *) block);
-    lsp_obj_pool_release_obj((lsp_obj *) eval_block);
+    lsp_obj_pool_release_obj((lsp_obj *) block);
 
     lsp_list *old_stack = vector_pop_lsp_list_ptr(&global_interp_ctx.symbols_stack);
     assert(old_stack);
