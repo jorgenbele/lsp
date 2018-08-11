@@ -41,6 +41,8 @@ const builtin builtins[] = {
     {"eval", builtin_eval},
     {"repeat", builtin_repeat},
     {"load-file", builtin_loadfile},
+    {"assert", builtin_assert},
+    {"exit", builtin_exit},
 
     // lists
     {"len", builtin_len},
@@ -564,12 +566,16 @@ lsp_obj *builtin_loadfile(lsp_list *argl)
     const char *cstr = str->ptr;
     assert(cstr);
     FILE *fp = fopen(cstr, "r");
+
+    int ret = 1;
     if (!fp) {
         fprintf(stderr, "Runtime error: unable to open file `%s`!\n", cstr);
+        ret = 0;
     } else {
         int ret = load_file(fp, false, false, true); // set the last true to false when not in repl
         if (ret) {
             fprintf(stderr, "Runtime error: failed to load file `%s`!\n", cstr);
+            ret = 0;
         }
         fclose(fp);
     }
@@ -577,5 +583,51 @@ lsp_obj *builtin_loadfile(lsp_list *argl)
     lsp_obj_destroy((lsp_obj *) str);
     lsp_obj_pool_release_obj((lsp_obj *) str);
 
-    return lsp_obj_new(OBJ_GENERIC);
+    lsp_obj *obj_ret = lsp_obj_new(OBJ_INT);
+    assert(obj_ret);
+    obj_ret->integer = ret;
+    return obj_ret;
+}
+
+lsp_obj *builtin_assert(lsp_list *argl)
+{
+    REQUIRES_N_ARGS("assert", argl, 1);
+    const lsp_obj *obj_orig = lsp_list_get(argl, 1);
+    lsp_obj *obj = lsp_list_get_eval(argl, 1);
+    assert(obj);
+
+    if (!lsp_obj_is_true(obj)) {
+        char *borig = NULL;
+        size_t borig_s = 0;
+        assert(!lsp_obj_to_str((lsp_obj *) obj_orig, &borig, &borig_s));
+
+        char *bobj = NULL;
+        size_t bobj_s = 0;
+        assert(!lsp_obj_to_str((lsp_obj *) obj, &bobj, &bobj_s));
+        fprintf(stderr, "Runtime error: assertion `%s` failed! `%s` is not true!\n", borig, bobj);
+        fflush(stderr);
+
+        free(bobj);
+        free(borig);
+
+        lsp_obj *obj_int = lsp_obj_new(OBJ_INT);
+        obj_int->integer = 0; // failed
+        return obj_int;
+    }
+
+    lsp_obj_destroy(obj);
+    lsp_obj_pool_release_obj(obj);
+
+    lsp_obj *obj_int = lsp_obj_new(OBJ_INT);
+    obj_int->integer = 1; // success
+    return obj_int;
+}
+
+// TODO: graceful exit
+lsp_obj *builtin_exit(lsp_list *argl)
+{
+    REQUIRES_N_ARGS("exit", argl, 1);
+    lsp_obj *obj_exit_code = lsp_list_get_eval(argl, 1);
+    assert(obj_exit_code && obj_exit_code->type == OBJ_INT);
+    exit(obj_exit_code->integer);
 }

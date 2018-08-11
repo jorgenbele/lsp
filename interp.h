@@ -50,6 +50,10 @@ lsp_obj *execute_defun_func(lsp_symbol *symb, lsp_list *argl);
 
 
 int set_symbol(lsp_symbol *symb, bool update, bool ignore_existing, bool global);
+lsp_obj *evaluate_defun(lsp_list *argl);
+lsp_obj *evaluate_defvar(lsp_list *argl);
+lsp_obj *evaluate_setq(lsp_list *argl);
+lsp_obj *evaluate_let(lsp_list *argl);
 
 // DEPRECATED
 int exec_tokens(vector_token *tokens);

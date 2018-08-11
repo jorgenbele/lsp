@@ -29,6 +29,34 @@ enum token_type {
 
 extern const char *token_type_str[];
 
+enum tokenizer_state_type {
+    TOKENIZER_NONE,
+    TOKENIZER_IN_LIST,
+    TOKENIZER_IN_COMMENT,
+    TOKENIZER_IN_QUOTE,
+    TOKENIZER_IN_ATOM,
+};
+typedef enum tokenizer_state_type tokenizer_state_type;
+
+struct tokenizer_state {
+    tokenizer_state_type type;
+    int counter;
+};
+typedef struct tokenizer_state tokenizer_state;
+
+DEF_VECTOR_HEADER(tokenizer_state, tokenizer_state)
+
+struct tokenizer_ctx {
+    vector_tokenizer_state states;
+
+    const char *last;
+};
+typedef struct tokenizer_ctx tokenizer_ctx;
+
+
+extern const char *tokenizer_state_str[];
+
+
 #define TOKEN_TYPE_STR(type) token_type_str[type]
 
 #define QUOTE_CHR '\''
@@ -72,8 +100,8 @@ DEF_VECTOR_HEADER(token, struct token)
 
 enum {TOKENIZE_STR_ERR=-1, TOKENIZE_STR_OK=0, TOKENIZE_STR_DONE=1};
 
-int tokenize_str_r(const char *str, vector_token *tokens, const char **last);
-int tokenize_str(const char *str, vector_token *tokens);
+int tokenize_str_r(const char *str, vector_token *tokens, tokenizer_ctx *ctx);
+int tokenize_str(const char *str, vector_token *tokens, tokenizer_ctx *ctx);
 void token_destroy(token *tok);
 void token_print(const token *tok);
 

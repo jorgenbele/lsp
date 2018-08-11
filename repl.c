@@ -32,6 +32,9 @@ int repl_read_next(FILE *fp, char **buf, size_t *bsize,
 
     bool done = false;
 
+    tokenizer_ctx tokenizer_ctx;
+    memset(&tokenizer_ctx, 0, sizeof(tokenizer_ctx));
+
     if (interactive) {
         fprintf(stdout, "REPL: ");
         fflush(stdout);
@@ -55,10 +58,11 @@ int repl_read_next(FILE *fp, char **buf, size_t *bsize,
 
         // update the last pointer using the saved offset
         const char *start = (*buf) + last_i;
-        const char *last = start;
+        //const char *last = start;
+        tokenizer_ctx.last = start;
 
         // try tokenize_str__ with the tokens
-        int r = tokenize_str_r(start, tokens, &last);
+        int r = tokenize_str_r(start, tokens, &tokenizer_ctx);
         if (r == TOKENIZE_STR_DONE) {
             done = true;
             break;
@@ -67,8 +71,10 @@ int repl_read_next(FILE *fp, char **buf, size_t *bsize,
         // since tokenize_str__ takes last as a pointer, and
         // the pointer may become invalidated on reallocation
         // store the index offset.
-        last_i = last - *buf;
+        last_i = tokenizer_ctx.last - *buf;
         //fprintf(stderr, "tokens_start: %lu, lists: %lu, r: %d, last_i: %lu\n", tokens_start, lists, r, last_i);
+
+        //fprintf(stderr, "TOKENIZER STATE: %s\n", tokenizer_state_str[vector_peek_tokenizer_state(&tokenizer_ctx.states).type]);
 
         for (size_t i = tokens_start; i < tokens->len; i++) {
             token token = vector_get_token(tokens, i);

@@ -629,6 +629,11 @@ int lsp_obj_repr_str(lsp_obj *obj, char **out, size_t *size)
     return repr_(obj, out, size, true);
 }
 
+int lsp_obj_to_str(lsp_obj *obj, char **out, size_t *size)
+{
+    return repr_(obj, out, size, false);
+}
+
 
 int lsp_obj_print_repr(lsp_obj *obj)
 {

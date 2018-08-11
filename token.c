@@ -27,19 +27,17 @@ const char *token_type_str[] = {
     "T_FLOAT",
 };
 
+const char *tokenizer_state_str[] = {
+    "TOKENIZER_NONE",
+    "TOKENIZER_IN_LIST",
+    "TOKENIZER_IN_COMMENT",
+    "TOKENIZER_IN_QUOTE",
+    "TOKENIZER_IN_ATOM",
+};
+
 //static const struct token default_token = {T_UNKNOWN, 0};
 DEF_VECTOR_FUNCS(token, struct token, ((const struct token) {T_UNKNOWN, 0}))
-
-
-#if 0
-static bool expect(const char *str, const char *expected)
-{
-    if (!strstr(str, expected)) {
-        return false;
-    }
-    return true;
-}
-#endif
+DEF_VECTOR_FUNCS(tokenizer_state, tokenizer_state, ((const tokenizer_state) {TOKENIZER_NONE, 0}))
 
 static const char *parse_comment(const char *str, vector_token *tokens)
 {
@@ -296,51 +294,76 @@ static const char *parse_atom(const char *str, vector_token *tokens)
 // tokenizes from 'strr until end of list or first symbol.
 // updates 'last' to be the pointer to next char
 // which has not been read yet.
-int tokenize_str_r(const char *str, vector_token *tokens, const char **last)
+int tokenize_str_r(const char *str, vector_token *tokens, tokenizer_ctx *ctx)
 {
     const char *ptr = str;
     int ret = TOKENIZE_STR_OK;
+
     while (*ptr) {
+        tokenizer_state state = vector_peek_tokenizer_state(&ctx->states);
+
         // List
         if (*ptr == LIST_START_CHR) {
+            vector_push_tokenizer_state(&ctx->states,
+                                        (tokenizer_state) {TOKENIZER_IN_LIST, ctx->states.len});
             vector_push_token(tokens, (token)
                               {T_LIST_START, 1, .is_str=false, .chr=LIST_START_CHR});
             ptr++;
-            //fprintf(stderr, "LIST_START_CHR rest:`%s`\n", ptr);
-            ret = tokenize_str_r(ptr, tokens, last);
-            ptr = *last;
+
+            ret = tokenize_str_r(ptr, tokens, ctx);
+            ptr = ctx->last;
+
+            {
+                tokenizer_state state = vector_peek_tokenizer_state(&ctx->states);
+                if (state.type == TOKENIZER_IN_LIST && state.counter == ctx->states.len) {
+                    // done
+                    vector_pop_tokenizer_state(&ctx->states);
+                    break;
+                }
+            }
+
             break;
         } else if (*ptr == LIST_END_CHR) {
             vector_push_token(tokens, (token)
                               {T_LIST_END, 1, .is_str=false, .chr=LIST_END_CHR});
             ptr++;
             //fprintf(stderr, "LIST_END_CHR rest:`%s`\n", ptr);
-            *last = ptr;
+            ctx->last = ptr;
             break;
         // ';' Comments ignore the rest of the line.
         } else if (*ptr == CMT_START_CHR) {
             ptr = parse_comment(ptr, tokens);
             //fprintf(stderr, "CMD_START_CHR rest:`%s`\n", ptr);
-            *last = ptr;
+            ctx->last = ptr;
             break;
         } else if (*ptr == NEWLINE_CHR) {
             vector_push_token(tokens, (token)
                               {T_NEWLINE, 1, .is_str=false, .chr=NEWLINE_CHR});
             ptr++;
             //fprintf(stderr, "NEWLINE_CHR rest:`%s`\n", ptr);
-            *last = ptr;
+            ctx->last = ptr;
             break;
 
         } else if (*ptr == QUOTE_CHR) {
+            // NOTE cannot contain recursive shorthand quotes at the moment
+            // this means that '('(test)) is not a legal use of the shorthand
+            // at the moment.
+            vector_push_tokenizer_state(&ctx->states,
+                                        (tokenizer_state) {TOKENIZER_IN_QUOTE, ctx->states.len});
+            //ctx->state = TOKENIZER_IN_QUOTE;
             // Convert inline to the form (quote ...)
             // by pushing LIST_START, SYMBOL:quote,
             vector_push_token(tokens, (token)
                               {T_LIST_START, 1, .is_str=false, .chr=LIST_START_CHR});
             vector_push_token(tokens, (token)
-                              {T_SYMBOL, QUOTE_SYMB_LEN, .is_str=true, .str=xstrdupn(QUOTE_SYMB_NAME, QUOTE_SYMB_LEN)});
+                              {T_SYMBOL, QUOTE_SYMB_LEN, .is_str=true,
+                                      .str=xstrdupn(QUOTE_SYMB_NAME, QUOTE_SYMB_LEN)});
+
             ptr++;
-            ret = tokenize_str_r(ptr, tokens, last);
-            ptr = *last;
+            ret = tokenize_str_r(ptr, tokens, ctx);
+            ptr = ctx->last;
+            vector_pop_tokenizer_state(&ctx->states);
+            // push the list end
             vector_push_token(tokens, (token)
                               {T_LIST_END, 1, .is_str=false, .chr=LIST_END_CHR});
             break;
@@ -349,8 +372,11 @@ int tokenize_str_r(const char *str, vector_token *tokens, const char **last)
         } else if (isblank(*ptr)) {
             ptr = parse_blank(ptr, tokens);
             //fprintf(stderr, "BLANK_CHR rest:`%s`\n", ptr);
-            *last = ptr;
+            ctx->last = ptr;
         } else {
+        atom_state_resume:
+            // TODO:
+            //ptr = parse_atom(ptr, tokens, ctx);
             ptr = parse_atom(ptr, tokens);
             if (!ptr)  {
                 parse_error("Failed to parse atom.\n");
@@ -359,7 +385,7 @@ int tokenize_str_r(const char *str, vector_token *tokens, const char **last)
                 //break;
             }
             //fprintf(stderr, "ATOM rest:`%s`\n", ptr);
-            *last = ptr;
+            ctx->last = ptr;
         }
     }
 
@@ -373,7 +399,7 @@ ret_:
     return ret;
 }
 
-int tokenize_str(const char *str, vector_token *tokens)
+int tokenize_str(const char *str, vector_token *tokens, tokenizer_ctx *ctx)
 {
     size_t len = strlen(str);
     size_t last_i = 0;
@@ -384,10 +410,11 @@ int tokenize_str(const char *str, vector_token *tokens)
         }
         const char *start = str + last_i;
         const char *last = start;
-        if (tokenize_str_r(start, tokens, &last) == 1) {
+        ctx->last = last;
+        if (tokenize_str_r(start, tokens, ctx) == 1) {
             break;
         }
-        last_i = last - str;
+        last_i = ctx->last - str;
         //tokens_start = tokens->len;
     }
     return 0;

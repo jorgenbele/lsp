@@ -267,37 +267,49 @@ lsp_list *ast_execute(lsp_list *ast)
 int set_symbol(lsp_symbol *symb, bool update, bool ignore_existing, bool global)
 {
     // make sure it does not already exist
-    lsp_list *symbols = vector_peek_lsp_list_ptr(&global_interp_ctx.symbols_stack);
-    assert(symbols);
-    assert(symbols->type == OBJ_LIST);
-    size_t len = lsp_list_len(symbols);
-    for (size_t i = len; i > 0; i--) {
-        lsp_obj *e_obj = vector_get_lsp_obj_ptr(
-            &symbols->vec, i-1
-        );
-        assert(e_obj);
-        assert(e_obj->type == OBJ_SYMBOL);
-        lsp_symbol *e_symb = (lsp_symbol *) e_obj;
-        bool exists = (e_symb->symb_len == symb->symb_len
-                       && !strncmp(e_symb->symb, symb->symb, e_symb->symb_len));
-        if (!ignore_existing) {
-            if (exists && !update) {
-                fprintf(stderr, "Runtime error: trying to redefine symbol `%s`.\n",
-                        symb->symb);
-                return 1;
-            } else if (!exists && update) {
-                fprintf(stderr, "Runtime error: trying to update non-existing symbol `%s`.\n",
-                        symb->symb);
-                return 1;
+    // iterate down the stack
+    const size_t symbols_stack_len = global_interp_ctx.symbols_stack.len;
+    size_t symbols_stack_i = symbols_stack_len;
+    while (symbols_stack_i-- > 0) {
+        lsp_list *symbols = vector_get_lsp_list_ptr(&global_interp_ctx.symbols_stack, symbols_stack_i);
+        assert(symbols);
+        assert(symbols->type == OBJ_LIST);
+        size_t len = lsp_list_len(symbols);
+        for (size_t i = len; i > 0; i--) {
+            lsp_obj *e_obj = vector_get_lsp_obj_ptr(
+                &symbols->vec, i-1
+            );
+            assert(e_obj);
+            assert(e_obj->type == OBJ_SYMBOL);
+            lsp_symbol *e_symb = (lsp_symbol *) e_obj;
+            bool exists = (e_symb->symb_len == symb->symb_len
+                           && !strncmp(e_symb->symb, symb->symb, e_symb->symb_len));
+            if (!ignore_existing) {
+                if (exists && !update) {
+                    fprintf(stderr, "Runtime error: trying to redefine symbol `%s`.\n",
+                            symb->symb);
+                    return 1;
+                    //} else if (!exists && update) {
+                    //    fprintf(stderr, "Runtime error: trying to update non-existing symbol `%s`.\n",
+                    //            symb->symb);
+                    //    return 1;
+                    //}
+                }
+                if (exists) {
+                    if (update) {
+                        assert(!lsp_obj_destroy(e_obj));
+                        assert(!lsp_obj_pool_release_obj(e_obj));
+                        return vector_set_lsp_obj_ptr(&symbols->vec, (lsp_obj *) symb, i-1);
+                    }
+                }
             }
         }
-        if (exists) {
-            if (update) {
-                assert(!lsp_obj_destroy(e_obj));
-                assert(!lsp_obj_pool_release_obj(e_obj));
-                return vector_set_lsp_obj_ptr(&symbols->vec, (lsp_obj *) symb, i-1);
-            }
-        }
+    }
+
+    if (update) {
+        fprintf(stderr, "Runtime error: trying to update non-existing symbol `%s`.\n",
+                symb->symb);
+        return 1;
     }
 
     if (global) {
@@ -339,10 +351,32 @@ lsp_obj *evaluate_defun(lsp_list *argl)
     lsp_list *rest = lsp_list_after(argl, 1);
     assert(rest);
     symb->val = (lsp_obj *) rest;
-    assert(!set_symbol(symb, true, true, true));
+    assert(!set_symbol(symb, false, true, true));
 
     return lsp_obj_new(OBJ_GENERIC);
 }
+
+// (defvar <name> <initial-value>)
+// defines a symbol with the name <name> to have
+// the initial value <initial-value>
+lsp_obj *evaluate_defvar(lsp_list *argl)
+{
+    REQUIRES_N_ARGS("defvar", argl, 2);
+
+    const lsp_obj *var = lsp_list_get(argl, 1);
+    assert(var);
+    assert(var->type == OBJ_SYMBOL);
+
+    lsp_symbol *symb = (lsp_symbol *) lsp_obj_clone(var);
+    assert(symb);
+
+    lsp_obj *value = lsp_list_get_eval(argl, 2); // NOTE: uses eval
+    assert(value);
+    symb->val = value;
+    assert(!set_symbol(symb, false, false, true)); // not global when in function/let scope
+    return lsp_obj_new(OBJ_GENERIC);
+}
+
 
 // (setq <name> <value>)
 // sets a previously defined symbol with the
@@ -361,7 +395,7 @@ lsp_obj *evaluate_setq(lsp_list *argl)
     lsp_obj *value = lsp_list_get_eval(argl, 2); // NOTE: uses eval
     assert(value);
     symb->val = value;
-    assert(!set_symbol(symb, true, true, false)); // not global when in function/let scope
+    assert(!set_symbol(symb, true, false, false)); // not global when in function/let scope
     return lsp_obj_new(OBJ_GENERIC);
 }
 
@@ -382,10 +416,16 @@ lsp_obj *evaluate_let(lsp_list *argl)
     size_t pairs_len = lsp_list_len(pairs);
     for (size_t i = 0; i < pairs_len; i++) {
         lsp_list *pair = (lsp_list *) lsp_list_get(pairs, i);
+        fprintf(stderr, "pair: ");
+        fflush(stderr);
+        lsp_obj_print_repr(pairs);
         assert(pair && pair->type == OBJ_LIST);
 
         const lsp_obj *var = lsp_list_get(pair, 0);
         assert(var);
+        fprintf(stderr, "var: ");
+        fflush(stderr);
+        lsp_obj_print_repr(var);
         assert(var->type == OBJ_SYMBOL);
 
         lsp_symbol *symb = (lsp_symbol *) lsp_obj_clone(var);
@@ -432,6 +472,8 @@ static lsp_obj *execute_builtin(lsp_symbol *symb, lsp_list *lst)
 
     if (!strcmp(symb->symb, "defun")) {
         return evaluate_defun(lst);
+    } else if (!strcmp(symb->symb, "defvar")) {
+        return evaluate_defvar(lst);
     } else if (!strcmp(symb->symb, "setq")) {
         return evaluate_setq(lst);
     } else if (!strcmp(symb->symb, "let")) {

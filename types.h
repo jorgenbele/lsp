@@ -91,6 +91,7 @@ int lsp_obj_print(lsp_obj *obj);
 int lsp_obj_print_repr(lsp_obj *obj);
 lsp_str *lsp_obj_repr(lsp_obj *obj);
 int lsp_obj_repr_str(lsp_obj *obj, char **out, size_t *size);
+int lsp_obj_to_str(lsp_obj *obj, char **out, size_t *size);
 
 void lsp_obj_pool_print_stats();
 int lsp_obj_pool_init();

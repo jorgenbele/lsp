@@ -84,15 +84,28 @@ static void minus_integers_simple(void **state) {
     assert_repr_equal("(- -1 -9)", (const char *[]) {"#int:8"}, 1);
 }
 
-/*
-  (quote (+ 2 3))
-*/
-
-// test list
-static void list_simple(void **state) {
+// quote using 'quote' list
+static void quote_long_simple(void **state) {
     assert_repr_equal("(quote (+ 1 2 3))", (const char *[]) {"#list:(#sym:+ #int:1 #int:2 #int:3)"}, 1);
     assert_repr_not_equal("(quote (+ 1 2 3))", (const char *[]) {"#list:(#int:6)"}, 1);
     assert_repr_equal("(quote (quote (+ 1 2 3)))", (const char *[]) {"#list:(#sym:quote #list:(#sym:+ #int:1 #int:2 #int:3))"}, 1);
+}
+
+// quote using the ' shorthand
+static void quote_short_simple(void **state) {
+    assert_repr_equal("'(+ 1 2 3)", (const char *[]) {"#list:(#sym:+ #int:1 #int:2 #int:3)"}, 1);
+    assert_repr_not_equal("'(+ 1 2 3)", (const char *[]) {"#list:(#int:6)"}, 1);
+    assert_repr_equal("'(quote (+ 1 2 3))", (const char *[]) {"#list:(#sym:quote #list:(#sym:+ #int:1 #int:2 #int:3))"}, 1);
+    assert_repr_equal("'('(+ 1 2 3))", (const char *[]) {"#list:(#list:(#sym:quote #list:(#sym:+ #int:1 #int:2 #int:3)))"}, 1);
+    // TODO fix:
+    //assert_repr_equal("(eval '()))", (const char *[]) {"#list:()"}, 1);
+    assert_repr_equal("'()'", (const char *[]) {"#list:()"}, 1);
+}
+
+//  cmp
+static void cmp_gt(void **state) {
+    assert_repr_equal("(< 0 1)", (const char *[]) {"#int:1"}, 1);
+    assert_repr_equal("(< 0 1)", (const char *[]) {"#int:1"}, 1);
 }
 
 int main(void)
@@ -102,7 +115,9 @@ int main(void)
         cmocka_unit_test(repr_simple),
         cmocka_unit_test(sum_integers_simple),
         cmocka_unit_test(minus_integers_simple),
-        cmocka_unit_test(list_simple),
+        cmocka_unit_test(quote_long_simple),
+        cmocka_unit_test(quote_short_simple),
+        cmocka_unit_test(cmp_gt),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);    
 }
