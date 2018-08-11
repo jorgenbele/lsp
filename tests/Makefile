@@ -24,7 +24,7 @@ interp_test:
 	$(CC) $(CFLAGS) -DMOCKA_TEST -o builtins.o -c ../builtins.c
 	$(CC) $(CFLAGS) -DMOCKA_TEST -o types.o -c ../types.c
 	$(CC) $(CFLAGS) -DMOCKA_TEST -o interp.o -c ../interp.c
-	$(CC) $(CFLAGS) -DMOCKA_TEST -o interp_test interp_test.c token.o utils.o builtins.o types.o interp.o $(LIBS)
+	$(CC) $(CFLAGS) -DMOCKA_TEST -o interp_test interp_test.c token.o utils.o repl.o builtins.o types.o interp.o $(LIBS)
 
 runall: runvectortest runtokentest runinterptest
 
