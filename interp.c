@@ -416,16 +416,16 @@ lsp_obj *evaluate_let(lsp_list *argl)
     size_t pairs_len = lsp_list_len(pairs);
     for (size_t i = 0; i < pairs_len; i++) {
         lsp_list *pair = (lsp_list *) lsp_list_get(pairs, i);
-        fprintf(stderr, "pair: ");
-        fflush(stderr);
-        lsp_obj_print_repr(pairs);
+        //fprintf(stderr, "pair: ");
+        //fflush(stderr);
+        //lsp_obj_print_repr(pairs);
         assert(pair && pair->type == OBJ_LIST);
 
         const lsp_obj *var = lsp_list_get(pair, 0);
         assert(var);
-        fprintf(stderr, "var: ");
-        fflush(stderr);
-        lsp_obj_print_repr(var);
+        //fprintf(stderr, "var: ");
+        //fflush(stderr);
+        //lsp_obj_print_repr(var);
         assert(var->type == OBJ_SYMBOL);
 
         lsp_symbol *symb = (lsp_symbol *) lsp_obj_clone(var);
@@ -447,12 +447,23 @@ lsp_obj *evaluate_let(lsp_list *argl)
     for (size_t i = 2; i < argl_len; i++) {
         lsp_obj *eval_obj = lsp_list_get_eval(argl, i);
         assert(eval_obj);
-        assert(!lsp_list_push(block, eval_obj));
+        // only return the last value
+        if (i + 1 == argl_len) {
+            assert(!lsp_list_push(block, eval_obj));
+        } else {
+            lsp_obj_destroy(eval_obj);
+            lsp_obj_pool_release_obj(eval_obj);
+        }
+        //assert(!lsp_list_push(block, eval_obj));
     }
 
     lsp_obj *eval_block = lsp_obj_eval((lsp_obj *) block);
     lsp_obj_destroy((lsp_obj *) block);
     lsp_obj_pool_release_obj((lsp_obj *) block);
+
+    //printf("eval_block: ");
+    //lsp_obj_print_repr(eval_block);
+    //printf("\n");
 
     lsp_list *old_stack = vector_pop_lsp_list_ptr(&global_interp_ctx.symbols_stack);
     assert(old_stack);
@@ -460,7 +471,30 @@ lsp_obj *evaluate_let(lsp_list *argl)
     assert(!lsp_obj_destroy((lsp_obj *) old_stack));
     lsp_obj_pool_release_obj((lsp_obj *) old_stack);
 
-    return eval_block;
+   // lsp_obj *ret = builtin_progn(eval_block);
+
+   // assert(!lsp_obj_destroy((lsp_obj *) eval_block));
+   // lsp_obj_pool_release_obj((lsp_obj *) eval_block);
+
+   // return ret;
+
+    lsp_obj *ret = lsp_list_last(eval_block);
+    assert(!lsp_obj_destroy((lsp_obj *) eval_block));
+    lsp_obj_pool_release_obj((lsp_obj *) eval_block);
+    //return eval_block;
+    return ret;
+}
+
+lsp_obj *evaluate_return(lsp_list *argl)
+{
+    REQUIRES_N_ARGS("return", argl, 1)
+    lsp_obj *ret = lsp_list_get(argl, 1);
+    lsp_obj *evaled = lsp_obj_eval(ret);
+    //lsp_obj_print_repr(evaled);
+    // set evalued_return flag, used in short circuiting
+    // the function being executed.
+    global_interp_ctx.evaluated_return = true;
+    return evaled;
 }
 
 static lsp_obj *execute_builtin(lsp_symbol *symb, lsp_list *lst)
@@ -478,12 +512,18 @@ static lsp_obj *execute_builtin(lsp_symbol *symb, lsp_list *lst)
         return evaluate_setq(lst);
     } else if (!strcmp(symb->symb, "let")) {
         return evaluate_let(lst);
+    } else if (!strcmp(symb->symb, "return")) {
+        return evaluate_return(lst);
     }
     return NULL;
 }
 
+
 lsp_obj *execute_defun_func(lsp_symbol *symb, lsp_list *argl)
 {
+    bool keep_evaluated_return = global_interp_ctx.evaluated_return;
+    global_interp_ctx.evaluated_return = false;
+
     assert(symb->func); // cannot execute symbol that is
 
     //// get the function
@@ -549,6 +589,8 @@ lsp_obj *execute_defun_func(lsp_symbol *symb, lsp_list *argl)
     assert(symbols_fs);
     lsp_obj_destroy((lsp_obj *) symbols_fs);
     lsp_obj_pool_release_obj((lsp_obj *) symbols_fs);
+
+    global_interp_ctx.evaluated_return = keep_evaluated_return;
     
     // return the result
     return res;
@@ -557,7 +599,7 @@ lsp_obj *execute_defun_func(lsp_symbol *symb, lsp_list *argl)
 lsp_obj *list_evaluate(lsp_list *lst)
 {
     if (lst->vec.len == 0) {
-        // dont even bother, return empty list
+       // dont even bother, return empty list
         return lsp_obj_new(OBJ_GENERIC);
     }
 

@@ -498,14 +498,35 @@ lsp_obj *lsp_obj_new(lsp_obj_type type)
 
 lsp_obj *lsp_obj_eval(lsp_obj *obj)
 {
+    //static int eval_depth = 0;
     global_interp_ctx.n_obj_eval++;
 
-    if (obj->type == OBJ_LIST) {
-        return list_evaluate((lsp_list *) obj);
+    lsp_obj *ret = NULL;
+
+    //eval_depth++;
+    //printf("[%d] evaluating: ", eval_depth);
+    //lsp_obj_print_repr(obj);
+    //printf("\n");
+
+    if (global_interp_ctx.evaluated_return) {
+        // default: clone
+        //printf("cloning\n");
+    } else if (obj->type == OBJ_LIST) {
+        ret = list_evaluate((lsp_list *) obj);
     } else if (obj->type == OBJ_SYMBOL) {
-        return lsp_symbol_eval((lsp_symbol *) obj);
+        ret = lsp_symbol_eval((lsp_symbol *) obj);
     }
-    return lsp_obj_clone(obj);
+
+    //printf("[%d] evaluated_return: %s\n", eval_depth, global_interp_ctx.evaluated_return ? "true" : "false");
+
+    if (!ret) {
+        ret = lsp_obj_clone(obj);
+    }
+    //printf("[%d] evaluated_to: ", eval_depth);
+    //lsp_obj_print_repr(ret);
+    //printf("\n");
+    //eval_depth--;
+    return ret;
 }
 
 
@@ -801,6 +822,18 @@ lsp_list *lsp_list_after(lsp_list *lst, size_t i)
     }
 
     return after;
+}
+
+lsp_list *lsp_list_first(lsp_list *lst)
+{
+    return lsp_obj_clone(lsp_list_get(lst, 0));
+}
+
+
+lsp_list *lsp_list_last(lsp_list *lst)
+{
+    size_t lst_len = lsp_list_len(lst);
+    return lsp_obj_clone(lsp_list_get(lst, lst_len-1));
 }
 
 /*

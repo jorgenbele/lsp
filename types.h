@@ -113,5 +113,7 @@ int lsp_list_error(lsp_list *lst);
 lsp_obj *lsp_list_get(lsp_list *lst, size_t i);
 lsp_obj *lsp_list_get_eval(lsp_list *lst, size_t i);
 lsp_list *lsp_list_after(lsp_list *lst, size_t i);
+lsp_list *lsp_list_first(lsp_list *lst);
+lsp_list *lsp_list_last(lsp_list *lst);
 
 #endif // __TYPES_H_

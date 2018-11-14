@@ -3,7 +3,7 @@ LIBS := $(LIBS) `pkg-config --libs $(PKG_LIBS)`
 CFLAGS = -g
 #CC = musl-clang
 #CFLAGS := $(CFLAGS) -O3 -Wall -Wpedantic -std=c17 -fPIC
-CFLAGS := $(CFLAGS) -O3 -Wall -Wpedantic
+CFLAGS := $(CFLAGS) -O3 -Wall -Wpedantic -std=gnu99
 
 .PHONY: all clean install vector_test token_test runall
 

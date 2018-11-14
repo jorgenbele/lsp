@@ -3,6 +3,7 @@
 
 #include <time.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "types.h"
 #include "token.h"
@@ -30,6 +31,8 @@ struct interp_ctx {
     size_t n_obj_destroy;
     size_t n_obj_eval;
     struct timespec start;
+
+    bool evaluated_return;
 };
 typedef struct interp_ctx interp_ctx;
 

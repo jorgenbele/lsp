@@ -308,6 +308,9 @@ lsp_obj *builtin_if(lsp_list *argl)
         to_evaluate = lsp_list_get(argl, 3);
     }
 
+    //fprintf(stderr, "*if evaluating: ");
+    //lsp_obj_print_repr(to_evaluate);
+
     lsp_obj *ret = NULL;
     if (!to_evaluate) {
         // empty
