@@ -289,11 +289,6 @@ int set_symbol(lsp_symbol *symb, bool update, bool ignore_existing, bool global)
                     fprintf(stderr, "Runtime error: trying to redefine symbol `%s`.\n",
                             symb->symb);
                     return 1;
-                    //} else if (!exists && update) {
-                    //    fprintf(stderr, "Runtime error: trying to update non-existing symbol `%s`.\n",
-                    //            symb->symb);
-                    //    return 1;
-                    //}
                 }
                 if (exists) {
                     if (update) {
@@ -416,16 +411,10 @@ lsp_obj *evaluate_let(lsp_list *argl)
     size_t pairs_len = lsp_list_len(pairs);
     for (size_t i = 0; i < pairs_len; i++) {
         lsp_list *pair = (lsp_list *) lsp_list_get(pairs, i);
-        //fprintf(stderr, "pair: ");
-        //fflush(stderr);
-        //lsp_obj_print_repr(pairs);
         assert(pair && pair->type == OBJ_LIST);
 
         const lsp_obj *var = lsp_list_get(pair, 0);
         assert(var);
-        //fprintf(stderr, "var: ");
-        //fflush(stderr);
-        //lsp_obj_print_repr(var);
         assert(var->type == OBJ_SYMBOL);
 
         lsp_symbol *symb = (lsp_symbol *) lsp_obj_clone(var);
@@ -440,7 +429,6 @@ lsp_obj *evaluate_let(lsp_list *argl)
 
     assert(!vector_push_lsp_list_ptr(&global_interp_ctx.symbols_stack, symbols));
 
-
     lsp_list *block = (lsp_list *) lsp_obj_new(OBJ_LIST);
     assert(block);
 
@@ -454,16 +442,11 @@ lsp_obj *evaluate_let(lsp_list *argl)
             lsp_obj_destroy(eval_obj);
             lsp_obj_pool_release_obj(eval_obj);
         }
-        //assert(!lsp_list_push(block, eval_obj));
     }
 
     lsp_obj *eval_block = lsp_obj_eval((lsp_obj *) block);
     lsp_obj_destroy((lsp_obj *) block);
     lsp_obj_pool_release_obj((lsp_obj *) block);
-
-    //printf("eval_block: ");
-    //lsp_obj_print_repr(eval_block);
-    //printf("\n");
 
     lsp_list *old_stack = vector_pop_lsp_list_ptr(&global_interp_ctx.symbols_stack);
     assert(old_stack);
@@ -471,17 +454,9 @@ lsp_obj *evaluate_let(lsp_list *argl)
     assert(!lsp_obj_destroy((lsp_obj *) old_stack));
     lsp_obj_pool_release_obj((lsp_obj *) old_stack);
 
-   // lsp_obj *ret = builtin_progn(eval_block);
-
-   // assert(!lsp_obj_destroy((lsp_obj *) eval_block));
-   // lsp_obj_pool_release_obj((lsp_obj *) eval_block);
-
-   // return ret;
-
     lsp_obj *ret = (lsp_obj *) lsp_list_last((lsp_list *) eval_block);
     assert(!lsp_obj_destroy((lsp_obj *) eval_block));
     lsp_obj_pool_release_obj((lsp_obj *) eval_block);
-    //return eval_block;
     return ret;
 }
 
@@ -490,7 +465,6 @@ lsp_obj *evaluate_return(lsp_list *argl)
     REQUIRES_N_ARGS("return", argl, 1)
     lsp_obj *ret = lsp_list_get(argl, 1);
     lsp_obj *evaled = lsp_obj_eval(ret);
-    //lsp_obj_print_repr(evaled);
     // set evalued_return flag, used in short circuiting
     // the function being executed.
     global_interp_ctx.evaluated_return = true;
@@ -526,10 +500,6 @@ lsp_obj *execute_defun_func(lsp_symbol *symb, lsp_list *argl)
 
     assert(symb->func); // cannot execute symbol that is
 
-    //// get the function
-    //lsp_obj *func = lsp_symbol_eval(symb);
-    //assert(func);
-
     // create and use a new "block" scope
     lsp_list *symbols = (lsp_list *) lsp_obj_new(OBJ_LIST);
     assert(symbols);
@@ -547,7 +517,6 @@ lsp_obj *execute_defun_func(lsp_symbol *symb, lsp_list *argl)
     size_t argdefl_len = lsp_list_len(argdefl);
     size_t argl_len = lsp_list_len(argl);
 
-    //fprintf(stderr, "argdefl_len: %lu, rgl_len: %lu\n", argdefl_len, argl_len);
     assert(argdefl_len == argl_len - 1); // make sure all arguments are passed
     for (size_t i = 0; i < argdefl_len; i++) {
         lsp_symbol *symb_def = (lsp_symbol *) lsp_list_get(argdefl, i);
@@ -556,16 +525,9 @@ lsp_obj *execute_defun_func(lsp_symbol *symb, lsp_list *argl)
         lsp_obj *arg = lsp_list_get_eval(argl, i+1);
         assert(arg);
 
-        //fprintf(stderr, "eval'ed arg: ");
-        //lsp_obj_print_repr(arg);
-
         lsp_symbol *symb_clone = (lsp_symbol *) lsp_obj_clone((lsp_obj *) symb_def);
         assert(symb_clone && symb_clone->type == OBJ_SYMBOL);
 
-        //lsp_obj *arg_clone = (lsp_obj *) lsp_obj_clone((lsp_obj *) arg);
-        //assert(arg_clone);
-
-        //symb_clone->val = arg_clone;
         symb_clone->val = arg;
 
         // finally push the new symbol with the value provided in the argument list

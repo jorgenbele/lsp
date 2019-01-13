@@ -101,7 +101,6 @@ int main(int argc, const char *argv[])
                 ret = 1;
                 break;
             }
-            //int r = execute_file(fp, print_ast, print_tokens, print_time);
             int r = load_file(fp, repl_flags);
             fclose(fp);
             if (r) {

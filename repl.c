@@ -53,9 +53,7 @@ int repl_read_next(FILE *fp, char **buf, size_t *bsize,
                 break;
             }
             last_i = 0;
-            //fprintf(stderr, "GETLINE: `%s`\n", *buf);
         }
-        //fprintf(stderr, "BUF: `%s`\n", *buf);
 
         // update the last pointer using the saved offset
         const char *start = (*buf) + last_i;
@@ -67,18 +65,12 @@ int repl_read_next(FILE *fp, char **buf, size_t *bsize,
         if (r == TOKENIZE_STR_DONE) {
             done = true;
             break;
-//        } else if (r) {
-//            // error
-//            return r;
         }
 
         // since tokenize_str__ takes last as a pointer, and
         // the pointer may become invalidated on reallocation
         // store the index offset.
         last_i = tokenizer_ctx.last - *buf;
-        //fprintf(stderr, "tokens_start: %lu, lists: %lu, r: %d, last_i: %lu\n", tokens_start, lists, r, last_i);
-
-        //fprintf(stderr, "TOKENIZER STATE: %s\n", tokenizer_state_str[vector_peek_tokenizer_state(&tokenizer_ctx.states).type]);
 
         for (size_t i = tokens_start; i < tokens->len; i++) {
             token token = vector_get_token(tokens, i);
@@ -122,10 +114,8 @@ void build_and_execute_ast(vector_token *tokens, unsigned int flags)
     }
 
     lsp_obj_destroy((lsp_obj *) rlst);
-    //free(rlst);
     lsp_obj_pool_release_obj((lsp_obj *) rlst);
     lsp_obj_destroy((lsp_obj *) ast);
-    //free(ast);
     lsp_obj_pool_release_obj((lsp_obj *) ast);
 }
 
@@ -155,9 +145,6 @@ int repl_start(unsigned int flags)
     size_t ss = 0;
 
     while (!repl_read_next(stdin, &s, &ss, &tokens, true)) {
-        //if (!(flags & REPL_F_PRINT_TOKENS) || (flags & REPL_F_PRINT_AST)) {
-        //    lsp_obj_pool_print_stats();
-        //}
         if (!(flags & REPL_F_PRINT_TOKENS)) {
             START_TIME_TAKING_BLOCK(flags & REPL_F_PRINT_TIME)
             build_and_execute_ast(&tokens, flags | REPL_F_PRINT_RLIST);
@@ -172,7 +159,6 @@ int repl_start(unsigned int flags)
             token_destroy(&token);
         }
         tokens.len = 0;
-
     }
 
     // cleanup

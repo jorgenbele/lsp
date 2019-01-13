@@ -7,9 +7,9 @@
 #include <setjmp.h>
 #include <cmocka.h>
 
-DEF_VECTOR(int, int, 0xBEEF);
+DEF_VECTOR(int, int, 0xBEEF)
 typedef char * char_ptr;
-DEF_VECTOR(char_ptr, char_ptr, NULL);
+DEF_VECTOR(char_ptr, char_ptr, NULL)
 
 // initiating vector from array
 static void test_vector_init_w_int(void **state) {

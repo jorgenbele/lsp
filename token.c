@@ -300,8 +300,6 @@ int tokenize_str_r(const char *str, vector_token *tokens, tokenizer_ctx *ctx)
     int ret = TOKENIZE_STR_OK;
 
     while (*ptr) {
-        //tokenizer_state state = vector_peek_tokenizer_state(&ctx->states);
-
         // List
         if (*ptr == LIST_START_CHR) {
             vector_push_tokenizer_state(&ctx->states,
@@ -327,20 +325,17 @@ int tokenize_str_r(const char *str, vector_token *tokens, tokenizer_ctx *ctx)
             vector_push_token(tokens, (token)
                               {T_LIST_END, 1, .is_str=false, .chr=LIST_END_CHR});
             ptr++;
-            //fprintf(stderr, "LIST_END_CHR rest:`%s`\n", ptr);
             ctx->last = ptr;
             break;
         // ';' Comments ignore the rest of the line.
         } else if (*ptr == CMT_START_CHR) {
             ptr = parse_comment(ptr, tokens);
-            //fprintf(stderr, "CMD_START_CHR rest:`%s`\n", ptr);
             ctx->last = ptr;
             break;
         } else if (*ptr == NEWLINE_CHR) {
             vector_push_token(tokens, (token)
                               {T_NEWLINE, 1, .is_str=false, .chr=NEWLINE_CHR});
             ptr++;
-            //fprintf(stderr, "NEWLINE_CHR rest:`%s`\n", ptr);
             ctx->last = ptr;
             break;
 
@@ -350,7 +345,6 @@ int tokenize_str_r(const char *str, vector_token *tokens, tokenizer_ctx *ctx)
             // at the moment.
             vector_push_tokenizer_state(&ctx->states,
                                         (tokenizer_state) {TOKENIZER_IN_QUOTE, ctx->states.len});
-            //ctx->state = TOKENIZER_IN_QUOTE;
             // Convert inline to the form (quote ...)
             // by pushing LIST_START, SYMBOL:quote,
             vector_push_token(tokens, (token)
@@ -371,20 +365,15 @@ int tokenize_str_r(const char *str, vector_token *tokens, tokenizer_ctx *ctx)
         // Blanks
         } else if (isblank(*ptr)) {
             ptr = parse_blank(ptr, tokens);
-            //fprintf(stderr, "BLANK_CHR rest:`%s`\n", ptr);
             ctx->last = ptr;
         } else {
         //atom_state_resume:
-            // TODO:
-            //ptr = parse_atom(ptr, tokens, ctx);
             ptr = parse_atom(ptr, tokens);
             if (!ptr)  {
                 parse_error("Failed to parse atom.\n");
                 ret = TOKENIZE_STR_ERR;
                 goto ret_;
-                //break;
             }
-            //fprintf(stderr, "ATOM rest:`%s`\n", ptr);
             ctx->last = ptr;
         }
     }
@@ -415,7 +404,6 @@ int tokenize_str(const char *str, vector_token *tokens, tokenizer_ctx *ctx)
             break;
         }
         last_i = ctx->last - str;
-        //tokens_start = tokens->len;
     }
     return 0;
 }
