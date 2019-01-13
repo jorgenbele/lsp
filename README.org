@@ -1,23 +1,237 @@
-#+TITLE: 
-* Code guidelines
-** Limit allocations to a minimum!
-** NULL checks are done by the caller!
-** <type>_<operation>(IN_ARGS, OUT_ARGS)
-** Use nouns when a non-zero return value should mean success:
-*** E.g. has_object, is_type, ...
-** Comment what is being allocated.
-** Use enums for errors when ints are used instead of booleans.
+#+TITLE:
 
 
-* Language
+* Examples
+** Fibonacci
 #+BEGIN_SRC lisp
-; this is a single-line comment
-(setq *this-is-a-global* 10)
-(let ((x 10) (y 20))
-  (println x)
-  (println y))
+;; Prints the largest fibonacci number storable in the lsp int
+(defun fibo-max ()
+ (progn
+  (defun fibo-max-rec (x y c)
+   (if (gt y 0)
+    (progn
+     ; (println x y c)
+     (fibo-max-rec y (+ x y) (+ c 1)))
+    (list x (- c 1))))
+  (fibo-max-rec 0 1 0)))
 
-;(defun )
+;; print the highest fibonacci number one can store in
+;; a 64-bit signed integer
+(println (car (fibo-max))) ; 7540113804746346429 (the 92nd fibonacci number)
 #+END_SRC
 
-* TODO FIX >= and <= for mixed int/float.
+** List exclusion
+#+BEGIN_SRC lisp
+;; Returns lst without excl
+(defun list-excl (lst acc excl)
+  (if (> (len lst) 0)
+      (let ((front (car lst)) (rest (cdr lst)) (accl acc))
+        (if (! (= front excl))
+            (setq accl (append front acc)))
+        (return (list-excl rest accl excl)))
+        (return acc)))
+
+(list-excl (1 2 3 4 5) '() 3) ; (1 2 4 5)
+#+END_SRC
+
+** Sorting
+#+BEGIN_SRC lisp
+(defun list-excl-helper (lst acc excl)
+  (if (> (len lst) 0)
+      (let ((front (car lst)) (rest (cdr lst)) (accl acc))
+        (if (! (= front excl))
+            (setq accl (append front acc)))
+        (return (list-excl-helper rest accl excl)))
+        (return acc)))
+
+(defun list-excl (lst excl)
+  (return (list-excl-helper lst '() excl)))
+
+(defun list-min-helper (lst acc-min)
+  (if (> (len lst) 0)
+      (if (< (car lst) acc-min)
+          (return (list-min-helper (cdr lst) (car lst)))
+        (return (list-min-helper (cdr lst) acc-min)))
+    (return acc-min)))
+
+(defun list-min (lst)
+  (list-min-helper lst 9223372036854775807))
+
+(defun list-sort-helper (lst acc)
+  (if (> (len lst) 0)
+        (return (list-sort-helper (list-excl lst (list-min lst)) (append (list-min lst) (acc))))
+    (return acc)))
+
+(defun list-sort (lst)
+  (return (list-sort-helper lst '())))
+
+(println (list-sort (92839 7589 263695 123 5 71)))    ; (5 71 123 7589 92839 263695)
+(println (list-sort (27371 958709721 -12312 751565))) ; (-12312 27371 751565 958709721)
+#+END_SRC
+
+** Arithmetic
+#+BEGIN_SRC lisp
+;; Primitives
+(+ 1 2 3 4 5) ; expected = 15
+(* 10 10)     ; expected = 100
+(* 10 10 10)  ; expected = 1000
+(- 10 10 3)   ; expected = -3
+
+;; Composite
+(+ 10 (* 3 (- 10 4))) ; expected = 28
+#+END_SRC
+
+** Comparison operators (gt, lt, eql, not)
+#+BEGIN_SRC lisp
+; Operations
+(gt x y)  ; x > y
+(lt x y)  ; x < y
+(eql x y) ; x == y
+(not x)   ; C-style logical not; true if x is 0, false if x is non-zero
+
+; Usage
+(println *x* "==" *y* "=>" (if (eql *x* *y*) "true" "false"))      ; prints "true" if *x* == *y*
+(println *x* ">" *y* "=>" (if (gt *x* *y*) "true" "false"))        ; prints "true" if *x* > *y*
+(println *x* "<" *y* "=>" (if (lt *x* *y*) "true" "false"))        ; prints "true" if *x* < *y
+(println *x* "<=" *y* "=>" (if (not (gt *x* *y*)) "true" "false")) ; prints "true" if *x* <= *y
+(println *x* ">=" *y* "=>" (if (not (lt *x* *y*)) "true" "false")) ; prints "true" if *x* >= *y
+#+END_SRC lisp
+** Variables
+*** Creating globals (defvar)
+#+BEGIN_SRC lisp
+(defvar *x* 1) ; *x* is now a global variable with the value 1
+(defvar *lst* (1 2 3)) ; *lst* is now a global variable containing the list (1 2 3)
+#+END_SRC
+*** Creating locals (let)
+#+BEGIN_SRC lisp
+; Create a local x and assign it the value 2
+(let ((x 2))
+    ; x is only visible inside this scope
+    (println "local x" x)) ; outputs: local x 2
+
+; Create two local variables; x and y
+(let ((x 2) (y 3))
+    (println "local x" x "local y" y)) ; outputs: local x 2 local y 3
+
+; Shadowing - the "closest" variable in the scope is used
+(let ((x 1) (y 1))
+ (println "#1" x y)    ; #1 1 1
+ (let ((x 2) (y 2))
+  (println "#2" x y)   ; #2 2 2
+  (let ((x 3) (y 3))
+   (println "#3" x y)) ; #3 3 3
+  (println "#2" x y))  ; #2 2 2
+ (println "#1" x y))   ; #1 1 1
+
+;; Outputs
+; #1 1 1
+; #2 2 2
+; #3 3 3
+; #2 2 2
+; #1 1 1
+#+END_SRC
+*** Setting variables (setq)
+#+BEGIN_SRC lisp
+(defvar *x* 1) ; *x* is now a global variable with the value 1
+(print *x*)    ; outputs: 1
+(setq *x* 14) ;; updating the *x* global
+(print *x*)    ; outputs: 14
+#+END_SRC
+** Builtins
+*** quote and eval
+#+BEGIN_SRC lisp
+; (quote <expr>) returns <expr> without changing it
+; '(<expr>)  is the shorthand for (quote <expr>)
+(quote (+ 1 2 3)) ; (+ 1 2 3)
+'(+ 1 2 3)        ; (+ 1 2 3)
+
+; Normal (without quote)
+(+ 1 2 3)         ; 6
+
+; (eval <expr>) evaluates the <expr> and returns the result
+(eval (quote (+ 1 2 3))) ; 6
+(eval '(+ 1 2 3)) ; 6
+#+END_SRC
+*** reverse
+#+BEGIN_SRC lsp
+(reverse (1 2 3)) ; --> (3 2 1)
+#+END_SRC
+*** car, cfr, len
+#+BEGIN_SRC lsp
+; (len lst) returns the length of the list lst
+(len (1 2 3)) ; 3
+(len (1 2 3 (1 2 3))) ; 4
+
+; (car lst) returns the first element of the list lst
+(car (1 2 3)) ; 1
+
+; (cdr lst) returns the list lst with the first element removed
+(cdr (1 2 3)) ; (2 3)
+#+END_SRC
+*** load-file
+#+BEGIN_SRC lisp
+; (load-file <filename>) loads the lsp file <filename> making its contents available
+(if (! (load-file "tests/lsps/unittest.lsp"))
+ (progn
+  (println "ERROR: Unable to load unittest library! ===")
+  (println "=== Are you sure this is ran from the tests directory? ===")
+  (exit 1)))
+
+(assert-equal 1 1)
+(assert-true 78597397123)
+(assert-true -1264629723)
+(assert-false (> 2 3))
+; ... assertions ...
+
+(println "=== Finished comparison tests! ===")
+(println *unittest-successes* "successes")
+(println *unittest-failures* "failures")
+#+END_SRC
+
+**** Contents of tests/lsps/unittest.lsp
+#+BEGIN_SRC lisp
+(defvar *unittest-successes* 0)
+(defvar *unittest-failures* 0)
+
+(defun assert-true (condition)
+  (if (assert condition)
+        (setq *unittest-successes* (+ *unittest-successes* 1))
+      (setq *unittest-failures* (+ *unittest-failures* 1))))
+
+(defun assert-false (condition)
+  (assert-true (! condition)))
+
+(defun assert-equal (cnd1 cnd2)
+  (assert-true (= cnd1 cnd2)))
+
+(defun assert-not-equal (cnd1 cnd2)
+  (assert-true (! (= cnd1 cnd2))))
+
+(defun assert-< (cnd1 cnd2)
+  (assert-true (< cnd1 cnd2)))
+
+(defun assert-> (cnd1 cnd2)
+  (assert-true (> cnd1 cnd2)))
+
+(defun assert-<= (cnd1 cnd2)
+  (assert-true (<= cnd1 cnd2)))
+
+(defun assert->= (cnd1 cnd2)
+  (assert-true (>= cnd1 cnd2)))
+
+(defun unittest (name tests)
+  (progn
+    (println "== Running unittest" name "===")
+    ; (let ((unittest-successes 0) (unittest-failures 0))
+      (eval tests)
+      (println "=== Completed unittest" name "===")
+      (println *unittest-successes* "successes")
+      (println *unittest-failures* "failures")
+     ; )
+  ))
+
+;; example unittest
+;; (unittest "test-something"
+;;        '(unittest/assert-true 1))
+#+END_SRC
+***
