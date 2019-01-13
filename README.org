@@ -1,5 +1,41 @@
 #+TITLE:
 
+* What is this?
+This is an interpreter for a minimalistic LISP inspired programming language,
+written as a learning exercies.
+
+* How to use
+This projects uses the Make build system.
+** Building and running lsp
+*** Building the interpreter
+#+BEGIN_SRC sh
+# in lsp/
+make
+#+END_SRC
+
+*** Running programs
+#+BEGIN_SRC sh
+./lsp # starts the REPL
+./lsp lsps/fibonacci.lsp # runs the fibonacci example descripbed below
+./lsp lsps/sort.lsp # runs the sorting example descripbed below
+
+./lsp -l lsps/sort.lsp # loads lsps/sort.lsp and starts the REPL
+#+END_SRC
+** Building and running the tests
+*** Building the test programs
+Lsp uses the Mocka library for unittesting, and it has to be installed to
+build the test programs.
+#+BEGIN_SRC sh
+# in lsp/tests//
+make
+#+END_SRC
+
+*** Running the tests
+#+BEGIN_SRC sh
+# in lsp/tests//
+# run tests
+make runall
+#+END_SRC
 
 * Examples
 ** Fibonacci
