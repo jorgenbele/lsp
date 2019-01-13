@@ -1,1 +1,0 @@
-(println (fibo 100))
