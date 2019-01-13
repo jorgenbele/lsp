@@ -2,7 +2,7 @@
 
 * What is this?
 This is an interpreter for a minimalistic LISP inspired programming language,
-written as a learning exercies.
+written as a learning exercise.
 
 * How to use
 This projects uses the Make build system.
