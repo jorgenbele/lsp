@@ -40,7 +40,8 @@ int repl_read_next(FILE *fp, char **buf, size_t *bsize,
         fflush(stdout);
     }
     while (!done) {
-        if (last_i >= line_len) {
+        // line_len is never negative in this state
+        if (last_i >= (size_t)line_len) {
             if (lists > 0 && interactive) {
                 fprintf(stdout, "> ");
                 fflush(stdout);
@@ -66,6 +67,9 @@ int repl_read_next(FILE *fp, char **buf, size_t *bsize,
         if (r == TOKENIZE_STR_DONE) {
             done = true;
             break;
+//        } else if (r) {
+//            // error
+//            return r;
         }
 
         // since tokenize_str__ takes last as a pointer, and
@@ -90,22 +94,23 @@ int repl_read_next(FILE *fp, char **buf, size_t *bsize,
             break;
         }
     }
+    assert(!vector_destroy_tokenizer_state(&tokenizer_ctx.states));
     return ret;
 }
 
-void build_and_execute_ast(vector_token *tokens, bool print_ast, bool print_rlist)
+void build_and_execute_ast(vector_token *tokens, unsigned int flags)
 {
     // create ast
     lsp_list *ast = ast_build(tokens);
     assert(ast);
-    if (print_ast) {
+    if (flags & REPL_F_PRINT_AST) {
         lsp_obj_print_repr((lsp_obj *) ast);
     }
 
     // execute
     lsp_list *rlst = ast_execute(ast);
     assert(rlst);
-    if (print_rlist) {
+    if (flags & REPL_F_PRINT_RLIST) {
         for (size_t i = 0; i < rlst->vec.len; i++) {
             lsp_obj *obj = vector_get_lsp_obj_ptr(&rlst->vec, i);
             if (obj) {
@@ -141,7 +146,7 @@ void build_and_execute_ast(vector_token *tokens, bool print_ast, bool print_rlis
     }                                                           \
     } while (0);
 
-int repl_start(bool print_ast, bool print_tokens, bool print_time)
+int repl_start(unsigned int flags)
 {
     vector_token tokens;
     assert(!vector_init_token(&tokens));
@@ -150,21 +155,24 @@ int repl_start(bool print_ast, bool print_tokens, bool print_time)
     size_t ss = 0;
 
     while (!repl_read_next(stdin, &s, &ss, &tokens, true)) {
-        if (!print_tokens || print_ast) {
-            START_TIME_TAKING_BLOCK(print_time)
-            build_and_execute_ast(&tokens, print_ast, true);
-            END_TIME_TAKING_BLOCK(print_time)
-            lsp_obj_pool_print_stats();
+        //if (!(flags & REPL_F_PRINT_TOKENS) || (flags & REPL_F_PRINT_AST)) {
+        //    lsp_obj_pool_print_stats();
+        //}
+        if (!(flags & REPL_F_PRINT_TOKENS)) {
+            START_TIME_TAKING_BLOCK(flags & REPL_F_PRINT_TIME)
+            build_and_execute_ast(&tokens, flags | REPL_F_PRINT_RLIST);
+            END_TIME_TAKING_BLOCK(flags & REPL_F_PRINT_TIME)
         }
 
         for (size_t i = 0; i < tokens.len; i++) {
             token token = vector_get_token(&tokens, i);
-            if (print_tokens) {
+            if (flags & REPL_F_PRINT_TOKENS) {
                 token_print(&token);
             }
             token_destroy(&token);
         }
         tokens.len = 0;
+
     }
 
     // cleanup
@@ -182,8 +190,7 @@ int repl_start(bool print_ast, bool print_tokens, bool print_time)
     return 0;
 }
 
-int load_file(FILE *fp, bool print_ast, bool print_tokens,
-                        bool print_time)
+int load_file(FILE *fp, unsigned int flags)
 {
     vector_token tokens;
     assert(!vector_init_token(&tokens));
@@ -192,16 +199,16 @@ int load_file(FILE *fp, bool print_ast, bool print_tokens,
     size_t ss = 0;
 
     while (!repl_read_next(fp, &s, &ss, &tokens, false)) {
-        if (print_tokens) {
+        if (flags & REPL_F_PRINT_TOKENS) {
             for (size_t i = 0; i < tokens.len; i++) {
                 token token = vector_get_token(&tokens, i);
                 token_print(&token);
             }
         }
 
-        START_TIME_TAKING_BLOCK(print_time);
-        build_and_execute_ast(&tokens, print_ast, false);
-        END_TIME_TAKING_BLOCK(print_time);
+        START_TIME_TAKING_BLOCK(flags & REPL_F_PRINT_TIME)
+        build_and_execute_ast(&tokens, flags);
+        END_TIME_TAKING_BLOCK(flags & REPL_F_PRINT_TIME)
 
         for (size_t i = 0; i < tokens.len; i++) {
             token token = vector_get_token(&tokens, i);

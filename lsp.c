@@ -19,9 +19,7 @@ int main(int argc, const char *argv[])
     int ret = 0;
 
     bool use_repl = false;
-    bool print_ast = false;
-    bool print_tokens = false;
-    bool print_time = false;
+    int repl_flags = 0;
 
     int start_arg = 1;
 
@@ -33,13 +31,16 @@ int main(int argc, const char *argv[])
             for (int k = 1; argv[i][k]; k++) {
                 switch(argv[i][k]) {
                     case 't':
-                        print_tokens = true;
+                        repl_flags |= REPL_F_PRINT_TOKENS;
                         break;
                     case 'a':
-                        print_ast = true;
+                        repl_flags |= REPL_F_PRINT_AST;
                         break;
                     case 's':
-                        print_time = true;
+                        repl_flags |= REPL_F_PRINT_TIME;
+                        break;
+                    case 'v':
+                        repl_flags |= REPL_F_VERBOSE;
                         break;
                     case 'l':
                         if (i+1 >= argc) {
@@ -80,7 +81,7 @@ int main(int argc, const char *argv[])
             ret = 1;
             goto load_files_failed;
         }
-        int r = load_file(fp, print_ast, print_tokens, print_time);
+        int r = load_file(fp, repl_flags);
         fclose(fp);
         if (r) {
             ret = r;
@@ -91,7 +92,7 @@ int main(int argc, const char *argv[])
     }
 
     if (use_repl) {
-        ret = repl_start(print_ast, print_tokens, print_time);
+        ret = repl_start(repl_flags);
     } else {
         for (int i = start_arg; i < argc; i++) {
             FILE *fp = fopen(argv[i], "r");
@@ -101,7 +102,7 @@ int main(int argc, const char *argv[])
                 break;
             }
             //int r = execute_file(fp, print_ast, print_tokens, print_time);
-            int r = load_file(fp, print_ast, print_tokens, print_time);
+            int r = load_file(fp, repl_flags);
             fclose(fp);
             if (r) {
                 ret = r;

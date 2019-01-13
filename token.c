@@ -36,7 +36,7 @@ const char *tokenizer_state_str[] = {
 };
 
 //static const struct token default_token = {T_UNKNOWN, 0};
-DEF_VECTOR_FUNCS(token, struct token, ((const struct token) {T_UNKNOWN, 0}))
+DEF_VECTOR_FUNCS(token, struct token, ((const struct token) {T_UNKNOWN, 0, false, NULL}))
 DEF_VECTOR_FUNCS(tokenizer_state, tokenizer_state, ((const tokenizer_state) {TOKENIZER_NONE, 0}))
 
 static const char *parse_comment(const char *str, vector_token *tokens)
@@ -300,7 +300,7 @@ int tokenize_str_r(const char *str, vector_token *tokens, tokenizer_ctx *ctx)
     int ret = TOKENIZE_STR_OK;
 
     while (*ptr) {
-        tokenizer_state state = vector_peek_tokenizer_state(&ctx->states);
+        //tokenizer_state state = vector_peek_tokenizer_state(&ctx->states);
 
         // List
         if (*ptr == LIST_START_CHR) {
@@ -374,7 +374,7 @@ int tokenize_str_r(const char *str, vector_token *tokens, tokenizer_ctx *ctx)
             //fprintf(stderr, "BLANK_CHR rest:`%s`\n", ptr);
             ctx->last = ptr;
         } else {
-        atom_state_resume:
+        //atom_state_resume:
             // TODO:
             //ptr = parse_atom(ptr, tokens, ctx);
             ptr = parse_atom(ptr, tokens);

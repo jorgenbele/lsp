@@ -57,9 +57,15 @@ bool lsp_obj_is_true(lsp_obj *obj)
     return false;
 }
 
+/*
 #define DIFF_TO_CMP(type, left, right)                                  \
     (int) ((((type) ((type) (left) - (type) (right))) < 0) ?            \
            -1 : (((type) ((type) (left) - (type) (right))) > 0) ? 1 : 0)
+           */
+
+#define DIFF_TO_CMP(type, left, right)                                  \
+    (int) ((((type) ((type) (left) < (type) (right)))) ?            \
+           -1 : (((type) ((type) (left) > (type) (right)))) ? 1 : 0)
 
 
 #define IS_INT_OR_FLOAT(obj) \
@@ -826,14 +832,14 @@ lsp_list *lsp_list_after(lsp_list *lst, size_t i)
 
 lsp_list *lsp_list_first(lsp_list *lst)
 {
-    return lsp_obj_clone(lsp_list_get(lst, 0));
+    return (lsp_list *) lsp_obj_clone(lsp_list_get(lst, 0));
 }
 
 
 lsp_list *lsp_list_last(lsp_list *lst)
 {
     size_t lst_len = lsp_list_len(lst);
-    return lsp_obj_clone(lsp_list_get(lst, lst_len-1));
+    return (lsp_list *) lsp_obj_clone(lsp_list_get(lst, lst_len-1));
 }
 
 /*

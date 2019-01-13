@@ -53,7 +53,7 @@ static void assert_token_equal(const token *t1, const token *t2) {
 static void assert_tokenize(const char *str, token expected[], size_t len)
 {
     vector_token tokens;
-    tokenizer_state_type state = TOKENIZER_NONE;
+    //tokenizer_state_type state = TOKENIZER_NONE;
     tokenizer_ctx ctx;
     memset(&ctx, 0, sizeof(ctx));
     assert_false(vector_init_token(&tokens));

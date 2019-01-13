@@ -40,7 +40,7 @@ typedef enum tokenizer_state_type tokenizer_state_type;
 
 struct tokenizer_state {
     tokenizer_state_type type;
-    int counter;
+    size_t counter;
 };
 typedef struct tokenizer_state tokenizer_state;
 
@@ -106,6 +106,7 @@ void token_destroy(token *tok);
 void token_print(const token *tok);
 
 #ifdef MOCKA_TEST
+#include <unistd.h> // for ssize_t
 ssize_t sstr_len(const char *str);
 #endif /* MOCKA_TEST */
 

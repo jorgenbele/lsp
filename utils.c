@@ -52,8 +52,12 @@ int alloc_sprintf(char **out, size_t *size, const char *fmt, ...)
     va_list va;
     va_start(va, fmt);
     ssize_t len = vsnprintf(NULL, 0, fmt, va);
-    if (*size < len+1) {
-        *size = len+1;
+    if (len < 0) {
+        fprintf(stderr, "alloc_sprintf: Fatal, vsnprintf failed!\n");
+        exit(1);
+    }
+    if (*size < ((size_t)len)+1) {
+        *size = ((size_t)len)+1;
         *out = xrealloc(*out, *size);
     }
     va_end(va);

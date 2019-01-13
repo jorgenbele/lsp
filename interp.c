@@ -478,7 +478,7 @@ lsp_obj *evaluate_let(lsp_list *argl)
 
    // return ret;
 
-    lsp_obj *ret = lsp_list_last(eval_block);
+    lsp_obj *ret = (lsp_obj *) lsp_list_last((lsp_list *) eval_block);
     assert(!lsp_obj_destroy((lsp_obj *) eval_block));
     lsp_obj_pool_release_obj((lsp_obj *) eval_block);
     //return eval_block;

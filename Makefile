@@ -17,7 +17,7 @@ CC = gcc
 # define any compile-time flags
 #CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic #-std=c17 -fPIC
 #CFLAGS := $(CFLAGS) -g -Wall -Wpedantic #-std=c17 -fPIC
-CFLAGS := $(CFLAGS) -O3 -Wall -Wpedantic -std=c17 -fPIC
+CFLAGS := $(CFLAGS) -O3 -Wall -Wextra -Wno-missing-braces -Wno-unused-parameter -Wpedantic -std=c17 -g
 #CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic -std=c17 -fPIC -Qunused-arguments
 #CFLAGS := $(CFLAGS) -g -Og -Wall -Wpedantic -std=c17 -fPIC -Qunused-arguments
 #CFLAGS := $(CFLAGS) -g -Wall -Wpedantic -std=c17 -fPIC # -Qunused-arguments

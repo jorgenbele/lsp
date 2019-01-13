@@ -575,7 +575,7 @@ lsp_obj *builtin_loadfile(lsp_list *argl)
         fprintf(stderr, "Runtime error: unable to open file `%s`!\n", cstr);
         ret = 0;
     } else {
-        int ret = load_file(fp, false, false, true); // set the last true to false when not in repl
+        int ret = load_file(fp, 0); // set the last true to false when not in repl
         if (ret) {
             fprintf(stderr, "Runtime error: failed to load file `%s`!\n", cstr);
             ret = 0;
